@@ -76,6 +76,15 @@
             <div class="container mx-auto p-4 flex flex-wrap justify-between items-center gap-4">
                 <div class="flex items-center gap-3">
                     <h1 class="text-xl font-black tracking-widest text-cyan-400 uppercase">河南德钧AI工具台</h1>
+                    <div class="hidden md:flex items-center gap-1 ml-4 flex-wrap">
+                        <a href="#sec-rate" class="text-[9px] text-slate-400 hover:text-cyan-400 border border-white/5 hover:border-cyan-500/30 px-2 py-0.5 rounded transition">汇率</a>
+                        <a href="#sec-time" class="text-[9px] text-slate-400 hover:text-cyan-400 border border-white/5 hover:border-cyan-500/30 px-2 py-0.5 rounded transition">时间</a>
+                        <a href="#sec-tz" class="text-[9px] text-slate-400 hover:text-cyan-400 border border-white/5 hover:border-cyan-500/30 px-2 py-0.5 rounded transition">时区</a>
+                        <a href="#sec-trans" class="text-[9px] text-slate-400 hover:text-cyan-400 border border-white/5 hover:border-cyan-500/30 px-2 py-0.5 rounded transition">翻译</a>
+                        <a href="#sec-predict" class="text-[9px] text-slate-400 hover:text-cyan-400 border border-white/5 hover:border-cyan-500/30 px-2 py-0.5 rounded transition">预测</a>
+                        <a href="#sec-geo" class="text-[9px] text-slate-400 hover:text-cyan-400 border border-white/5 hover:border-cyan-500/30 px-2 py-0.5 rounded transition">地缘</a>
+                        <a href="#sec-feedback" class="text-[9px] text-slate-400 hover:text-cyan-400 border border-white/5 hover:border-cyan-500/30 px-2 py-0.5 rounded transition">反馈</a>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-[10px] text-slate-400 bg-black/40 px-2 py-1 rounded border border-white/10">deepseek</span>
@@ -91,7 +100,7 @@
         <main class="container mx-auto mt-6 px-4 space-y-6">
 
             <!-- ======== 汇率 + 历史折线图 ======== -->
-            <div class="glass-card rounded-xl px-6 py-5 border-l-4 border-l-cyan-500">
+            <div id="sec-rate" class="glass-card rounded-xl px-6 py-5 border-l-4 border-l-cyan-500">
                 <div class="flex justify-between items-center mb-4">
                     <div class="text-xs text-slate-400">USD/CNY 汇率</div>
                     <div class="flex items-center gap-2">
@@ -111,7 +120,7 @@
             </div>
 
             <!-- ======== 地区时间查询 ======== -->
-            <div class="glass-card rounded-xl px-6 py-5 border-l-4 border-l-indigo-500 flex flex-col justify-center">
+            <div id="sec-time" class="glass-card rounded-xl px-6 py-5 border-l-4 border-l-indigo-500 flex flex-col justify-center">
                 <div class="text-xs text-slate-400 mb-2">地区时间查询</div>
                 <div class="flex items-center gap-3">
                     <input type="text" id="city-time-input" class="flex-1 h-9 text-sm px-3">
@@ -120,7 +129,7 @@
             </div>
 
             <!-- ======== 全球时区（两列，含工作状态，默认折叠）======= -->
-            <div class="glass-card rounded-xl px-6 py-5 border-l-4 border-l-slate-500">
+            <div id="sec-tz" class="glass-card rounded-xl px-6 py-5 border-l-4 border-l-slate-500">
                 <div class="flex items-center gap-3 mb-3">
                     <button onclick="toggleTimezone()" class="text-[10px] text-cyan-400 hover:text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded transition flex items-center gap-1">
                         <span id="tz-toggle-icon">&#9654;</span>
@@ -132,7 +141,7 @@
             </div>
 
             <!-- ======== 翻译模块 ======== -->
-            <div class="glass-card rounded-xl p-5 border-l-4 border-l-indigo-500">
+            <div id="sec-trans" class="glass-card rounded-xl p-5 border-l-4 border-l-indigo-500">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-sm font-bold text-indigo-300">神经网络翻译 / 行业术语专供</h2>
                     <div class="flex items-center gap-2">
@@ -154,7 +163,7 @@
             </div>
 
             <!-- ======== 预测模型 + 背调（合并）======= -->
-            <div class="rounded-2xl bg-tech-800 relative z-10 border border-blue-500/30 shadow-[0_0_30px_rgba(59,130,246,0.15)]">
+            <div id="sec-predict" class="rounded-2xl bg-tech-800 relative z-10 border border-blue-500/30 shadow-[0_0_30px_rgba(59,130,246,0.15)]">
                 <div class="glass-card rounded-2xl p-0 overflow-hidden border-none bg-tech-900/80">
                     <div class="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 p-4 flex justify-between items-center border-b border-white/5">
                         <h2 class="font-bold text-blue-300 text-sm">预测模型 / 商业情报与背调分析</h2>
@@ -199,17 +208,11 @@
                         </div>
                     </div>
 
-                    <div class="bg-black/40 border-t border-white/5 px-6 py-4">
-                        <button onclick="toggleHistory()" class="flex items-center gap-2 text-[10px] text-slate-400 hover:text-cyan-400 transition tracking-widest">
-                            <span id="hist-icon" class="text-cyan-500 text-xs">&#9654;</span> 访问历史记录
-                        </button>
-                        <div id="history-panel" class="hidden mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-                    </div>
                 </div>
             </div>
 
             <!-- ======== 地缘冲突与货运预警 ======== -->
-            <div class="glass-card rounded-xl p-6 border-t-4 border-t-red-500">
+            <div id="sec-geo" class="glass-card rounded-xl p-6 border-t-4 border-t-red-500">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-red-400 text-sm font-bold">地缘冲突与货运预警</h3>
                     <div class="flex items-center gap-2">
@@ -231,7 +234,7 @@
             </div>
 
             <!-- ======== 反馈中心 ======== -->
-            <div class="glass-card rounded-xl p-6 border border-slate-700 mt-6 bg-black/30">
+            <div id="sec-feedback" class="glass-card rounded-xl p-6 border border-slate-700 mt-6 bg-black/30">
                 <h3 class="font-bold text-xs mb-3 text-slate-400 tracking-widest">系统建设反馈中心</h3>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
                     <div class="md:col-span-3">
@@ -264,7 +267,6 @@
         const AI_MODEL = "deepseek-chat";
         function getApiKey() { const el = document.getElementById('api-key-input'); return el ? el.value.trim() : ''; }
 
-        let userHistory = JSON.parse(localStorage.getItem('crane_history_v6') || '[]');
         let pendingPossibilities = [];
         let pendingEntityName = '';
 
@@ -647,8 +649,6 @@
                 else if (aiResult.risk && aiResult.risk.includes('高')) riskColor = 'text-red-400';
                 else if (aiResult.risk && aiResult.risk.includes('中')) riskColor = 'text-amber-400';
 
-                userHistory.push({ key: authKey, name: name, country: country || '未知', industry: industry || '未知', time: new Date().toLocaleString() });
-                localStorage.setItem('crane_history_v7', JSON.stringify(userHistory));
 
                 diagResult.innerHTML = `
                     <div class="relative z-10 animate-fadeIn h-full flex flex-col">
@@ -688,8 +688,6 @@
                             <p class="text-slate-300 text-[11px] italic">${aiResult.conclusion || ''}</p>
                         </div>
                     </div>`;
-
-                loadHistory();
             } catch (error) {
                 console.error(error);
                 diagResult.innerHTML = '<div class="flex flex-col items-center justify-center h-full"><p class="text-red-500 font-bold text-sm tracking-widest mb-3">系统错误</p><p class="text-red-400/70 text-[10px] text-center max-w-xs">数据流解析失败。请检查网络连接或 API 密钥额度。</p></div>';
@@ -781,35 +779,6 @@ ${getDatePrefix()}
             } catch (error) {
                 container.innerHTML = '<div class="text-xs text-red-400 py-6 text-center">刷新失败，请检查网络或 API 密钥</div>';
             }
-        }
-
-        // ==========================================
-        // 历史记录
-        // ==========================================
-        function loadHistory() {
-            const key = getApiKey();
-            const panel = document.getElementById('history-panel');
-            panel.innerHTML = '';
-            const myHistory = userHistory.filter(h => h.key === key);
-            if (myHistory.length === 0) { panel.innerHTML = '<p class="text-[10px] text-slate-600">无历史记录</p>'; return; }
-            myHistory.reverse().forEach(h => {
-                const div = document.createElement('div');
-                div.className = 'bg-black/60 p-3 rounded border border-slate-700 hover:border-cyan-500/50 cursor-pointer transition group';
-                div.innerHTML = '<div class="font-bold mb-1"><span class="text-slate-300 text-xs group-hover:text-cyan-300">' + h.name + '</span></div><div class="text-[9px] text-slate-500">' + (h.country || '') + (h.industry ? ' | '+h.industry : '') + '</div>';
-                div.onclick = function() {
-                    document.getElementById('in-name').value = h.name;
-                    document.getElementById('in-country').value = h.country || '';
-                    document.getElementById('in-industry').value = h.industry || '';
-                };
-                panel.appendChild(div);
-            });
-        }
-
-        function toggleHistory() {
-            const panel = document.getElementById('history-panel');
-            const icon = document.getElementById('hist-icon');
-            if (panel.classList.contains('hidden')) { loadHistory(); panel.classList.remove('hidden'); icon.innerHTML = '&#9660;'; }
-            else { panel.classList.add('hidden'); icon.innerHTML = '&#9654;'; }
         }
 
         // ==========================================
