@@ -47,7 +47,7 @@
             background-size: 100% 100%, 40px 40px, 40px 40px;
             background-blend-mode: normal;
             color: #e2e8f0; min-height: 100vh;
-            overflow: hidden;
+            overflow: auto;
         }
         .glass-card {
             background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
@@ -70,29 +70,8 @@
 </head>
 <body class="font-sans antialiased selection:bg-cyan-500 selection:text-white">
 
-    <div id="login-gate" class="fixed inset-0 z-[999] bg-[#050b14] flex flex-col items-center justify-center transition-all duration-700">
-        <div class="scan-line absolute inset-0 w-full h-32 animate-scanline pointer-events-none"></div>
-        <div class="glass-card p-8 rounded-2xl w-80 relative z-10 border border-cyan-500/30 shadow-[0_0_50px_rgba(6,182,212,0.1)]">
-            <div class="text-center mb-6">
-                <span class="text-5xl drop-shadow-[0_0_15px_rgba(56,189,248,0.8)]">🏗️</span>
-                <h1 class="text-xl font-black tracking-widest text-gradient uppercase mt-4">CRANE_AI_NEXUS</h1>
-                <p class="text-[10px] text-slate-400 font-mono tracking-widest mt-1">RESTRICTED ACCESS</p>
-            </div>
-            <div class="space-y-4">
-                <div>
-                    <input type="password" id="system-pwd" class="w-full text-center tracking-[0.3em] font-mono text-cyan-300 py-3 bg-black/60 border-cyan-500/50 focus:border-cyan-400" placeholder="sk-..." autocomplete="off">
-                </div>
-                <button onclick="verifyAccess()" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-mono tracking-widest py-3 rounded border border-cyan-400/50 transition">
-                    INITIALIZE
-                </button>
-                <div id="login-error" class="text-[10px] text-red-500 font-mono text-center opacity-0 transition-opacity">
-                    [ERROR] INVALID AUTHENTICATION KEY
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <div id="main-content" class="opacity-0 transition-opacity duration-1000 pb-20">
+    <div id="main-content" class="transition-opacity duration-1000 pb-20">
         <div id="onboarding-modal" class="hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center transition-opacity">
             <div class="bg-slate-900 border border-cyan-500/50 p-6 rounded-2xl shadow-[0_0_30px_rgba(6,182,212,0.3)] max-w-md w-full relative">
                 <div class="text-center mb-4">
@@ -118,9 +97,12 @@
                     <div class="flex gap-2 text-xs text-slate-300 font-mono" id="timezone-bar"></div>
                 </div>
                 
-                <div class="flex items-center gap-2 bg-emerald-900/30 px-4 py-1.5 rounded-full border border-emerald-700/50 flex-shrink-0">
-                    <div class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></div>
-                    <span class="text-[10px] text-emerald-400 tracking-wider font-mono">SYSTEM ONLINE</span>
+                <div class="flex items-center gap-3">
+                    <input type="password" id="api-key-input" placeholder="sk-..." value="" class="h-8 w-36 bg-black/60 border border-cyan-500/30 rounded text-[11px] text-cyan-300 font-mono tracking-wider px-3 placeholder:text-slate-600 focus:border-cyan-400 outline-none" autocomplete="off">
+                    <div class="flex items-center gap-2 bg-emerald-900/30 px-4 py-1.5 rounded-full border border-emerald-700/50 flex-shrink-0">
+                        <div class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></div>
+                        <span class="text-[10px] text-emerald-400 tracking-wider font-mono">SYSTEM ONLINE</span>
+                    </div>
                 </div>
             </div>
         </header>
@@ -254,45 +236,19 @@
         // ==========================================
         const AI_API_URL = "https://api.deepseek.com/v1/chat/completions";
         const AI_MODEL = "deepseek-chat";
-        function getApiKey() { return sessionStorage.getItem('nexus_api_key') || ''; }
-
-        // --- 1. 密码拦截与入口逻辑 ---
-        if(sessionStorage.getItem('nexus_auth') === 'true') {
-            document.getElementById('login-gate').style.display = 'none';
-            document.body.style.overflow = 'auto';
-            document.getElementById('main-content').classList.remove('opacity-0');
-        }
-
-        document.getElementById('system-pwd').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') verifyAccess();
+        function getApiKey() { const el = document.getElementById('api-key-input'); return el ? el.value.trim() : ''; }
+        // Persist API key input on change
+        document.addEventListener('DOMContentLoaded', function() {
+            const keyInput = document.getElementById('api-key-input');
+            if (keyInput) {
+                keyInput.value = sessionStorage.getItem('nexus_api_key') || '';
+                keyInput.addEventListener('input', function() {
+                    sessionStorage.setItem('nexus_api_key', this.value);
+                });
+            }
         });
 
-        function verifyAccess() {
-            const pwd = document.getElementById('system-pwd').value.trim();
-            const errDiv = document.getElementById('login-error');
-            const pwdInput = document.getElementById('system-pwd');
-
-            if(pwd.startsWith('sk-') && pwd.length > 10) {
-                errDiv.style.opacity = '0';
-                sessionStorage.setItem('nexus_auth', 'true');
-                sessionStorage.setItem('nexus_api_key', pwd);
-                const gate = document.getElementById('login-gate');
-                gate.style.opacity = '0';
-                gate.style.transform = 'scale(1.1)';
-                setTimeout(() => {
-                    gate.style.display = 'none';
-                    document.body.style.overflow = 'auto';
-                    document.getElementById('main-content').classList.remove('opacity-0');
-                }, 700);
-            } else {
-                errDiv.style.opacity = '1';
-                pwdInput.classList.remove('animate-shake');
-                void pwdInput.offsetWidth;
-                pwdInput.classList.add('animate-shake');
-                pwdInput.value = '';
-                pwdInput.focus();
-            }
-        }
+        // --- 1. 入口逻辑 (已简化：API Key 移至顶部输入框) ---
 
         function checkAndShowModal() {
             if (!localStorage.getItem('first_diag_done')) {
@@ -594,12 +550,13 @@
         function updateTimezones() {
             const zones = [
                 { name: "北京", tz: "Asia/Shanghai" },
-                { name: "迪拜", tz: "Asia/Dubai" },
-                { name: "利雅得", tz: "Asia/Riyadh" },
-                { name: "莫斯科", tz: "Europe/Moscow" },
-                { name: "圣保罗", tz: "America/Sao_Paulo" },
                 { name: "纽约", tz: "America/New_York" },
-                { name: "渥太华", tz: "America/Toronto" }
+                { name: "伦敦", tz: "Europe/London" },
+                { name: "巴黎", tz: "Europe/Paris" },
+                { name: "莫斯科", tz: "Europe/Moscow" },
+                { name: "利雅得", tz: "Asia/Riyadh" },
+                { name: "迪拜", tz: "Asia/Dubai" },
+                { name: "伊斯兰堡", tz: "Asia/Karachi" }
             ];
             const container = document.getElementById('timezone-bar');
             if (!container) return;
