@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>起重机出口管家</title>
+    <title>河南德钧AI工具台</title>
+    <link rel="icon" href="德钧-logo标志无文字.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -73,7 +74,7 @@
         <header class="sticky top-0 z-50 glass-card border-none rounded-none shadow-2xl backdrop-blur-xl bg-black/60">
             <div class="container mx-auto p-4 flex flex-wrap justify-between items-center gap-4">
                 <div class="flex items-center gap-3">
-                    <h1 class="text-xl font-black tracking-widest text-cyan-400 uppercase">起重机出口管家</h1>
+                    <h1 class="text-xl font-black tracking-widest text-cyan-400 uppercase">河南德钧AI工具台</h1>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-[10px] text-slate-400 bg-black/40 px-2 py-1 rounded border border-white/10">deepseek</span>
@@ -107,10 +108,16 @@
                 </div>
             </div>
 
-            <!-- ======== 全球时区（两列，含工作状态）======= -->
+            <!-- ======== 全球时区（两列，含工作状态，默认折叠）======= -->
             <div class="glass-card rounded-xl px-6 py-5 border-l-4 border-l-slate-500">
-                <div class="text-xs text-slate-400 mb-3">全球时区</div>
-                <div class="grid grid-cols-2 gap-3" id="timezone-grid"></div>
+                <div class="flex items-center gap-3 mb-3">
+                    <button onclick="toggleTimezone()" class="text-[10px] text-cyan-400 hover:text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded transition flex items-center gap-1">
+                        <span id="tz-toggle-icon">&#9654;</span>
+                        <span id="tz-toggle-text">展开时区</span>
+                    </button>
+                    <span class="text-xs text-slate-400">全球时区</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3 hidden" id="timezone-grid"></div>
             </div>
 
             <!-- ======== 翻译模块 ======== -->
@@ -146,6 +153,7 @@
                             <div>
                                 <label class="input-label">目标实体名称</label>
                                 <input type="text" id="in-name" class="w-full">
+                                <span class="text-[9px] text-slate-500 mt-1 block">（只需填写实体名称，其余自动识别）</span>
                             </div>
                             <div class="grid grid-cols-2 gap-4" id="entity-meta-fields">
                                 <div><label class="input-label">国家</label><input type="text" id="in-country" readonly class="w-full opacity-60 cursor-not-allowed"></div>
@@ -181,7 +189,10 @@
             <div class="glass-card rounded-xl p-6 border-t-4 border-t-red-500">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-red-400 text-sm font-bold">地缘冲突与货运预警</h3>
-                    <button onclick="refreshGeoAlert()" class="border border-red-500/40 text-red-400 hover:bg-red-900/30 px-3 py-1 rounded text-[11px] transition">刷新</button>
+                    <div class="flex items-center gap-2">
+                        <button onclick="expandGeoAlert()" class="border border-slate-500/40 text-slate-400 hover:bg-slate-700/30 px-2 py-1 rounded text-[10px] transition">放大</button>
+                        <button onclick="refreshGeoAlert()" class="border border-red-500/40 text-red-400 hover:bg-red-900/30 px-3 py-1 rounded text-[11px] transition">刷新</button>
+                    </div>
                 </div>
                 <div class="text-[10px] text-slate-500 mb-3" id="geo-alert-time">点击刷新获取最新预警</div>
                 <div class="space-y-4 text-xs" id="geo-alert-container">
@@ -209,7 +220,17 @@
                 </div>
             </div>
 
+            <footer class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">2026.4.24 jesper制</footer>
+
         </main>
+    </div>
+
+    <!-- ======== 放大模态框 ======== -->
+    <div id="expand-modal" class="hidden fixed inset-0 z-[999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 md:p-8">
+        <div class="relative max-w-4xl w-full max-h-[90vh] bg-slate-900 rounded-xl border border-cyan-500/30 p-6 md:p-8 overflow-y-auto">
+            <button onclick="closeExpandModal()" class="absolute top-3 right-3 text-slate-400 hover:text-white text-xl leading-none w-8 h-8 flex items-center justify-center rounded hover:bg-slate-800 transition">&times;</button>
+            <div id="expand-modal-content" class="text-sm md:text-base text-slate-200 leading-relaxed space-y-4"></div>
+        </div>
     </div>
 
     <script>
@@ -507,8 +528,13 @@
                 diagResult.innerHTML = `
                     <div class="relative z-10 animate-fadeIn h-full flex flex-col">
                         <div class="mb-4 border-b border-slate-700 pb-4 shrink-0">
-                            <h3 class="font-black text-2xl text-white tracking-wide">${name}</h3>
-                            <p class="text-[10px] text-slate-400 mt-1 mb-3">${country || ''}${city ? ' | '+city : ''}${industry ? ' | '+industry : ''}</p>
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1 min-w-0">
+                                    <h3 class="font-black text-2xl text-white tracking-wide">${name}</h3>
+                                    <p class="text-[10px] text-slate-400 mt-1 mb-3">${country || ''}${city ? ' | '+city : ''}${industry ? ' | '+industry : ''}</p>
+                                </div>
+                                <button onclick="expandDiagnosis()" class="shrink-0 border border-slate-500/40 text-slate-400 hover:bg-slate-700/30 px-2 py-1 rounded text-[10px] transition ml-2">放大</button>
+                            </div>
                             <div class="flex flex-wrap gap-1 items-center">
                                 <span class="text-[10px] text-slate-500 mr-1">情报标签云</span>${tagsHtml}
                                 <span class="ml-auto text-[10px] font-bold ${riskColor}">风评：${aiResult.risk || '未知'}</span>
@@ -705,6 +731,65 @@
                 headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
                 body: JSON.stringify({ "反馈来源": "AI指挥舱", "内容": val, "时间": new Date().toLocaleString() })
             }).then(r => { if (r.ok) { alert("回传成功！"); document.getElementById('bug-report').value = ""; }});
+        }
+
+        // ==========================================
+        // 放大与折叠功能
+        // ==========================================
+        function toggleTimezone() {
+            const grid = document.getElementById('timezone-grid');
+            const icon = document.getElementById('tz-toggle-icon');
+            const text = document.getElementById('tz-toggle-text');
+            grid.classList.toggle('hidden');
+            if (grid.classList.contains('hidden')) {
+                icon.innerHTML = '&#9654;';
+                text.innerText = '展开时区';
+            } else {
+                icon.innerHTML = '&#9660;';
+                text.innerText = '收起时区';
+            }
+        }
+
+        function expandDiagnosis() {
+            const result = document.getElementById('diag-result');
+            const modalContent = document.getElementById('expand-modal-content');
+            // 克隆内容到模态框，放大字号
+            modalContent.innerHTML = result.innerHTML
+                .replace(/text-\[10px\]/g, 'text-sm')
+                .replace(/text-\[11px\]/g, 'text-base')
+                .replace(/text-xs/g, 'text-sm')
+                .replace(/text-sm/g, 'text-base')
+                .replace(/text-2xl/g, 'text-3xl')
+                .replace(/p-4/g, 'p-5')
+                .replace(/p-3/g, 'p-4')
+                .replace(/gap-1/g, 'gap-2')
+                .replace(/gap-2/g, 'gap-3')
+                .replace(/space-y-4/g, 'space-y-5')
+                .replace(/h-full/g, '')
+                .replace(/overflow-y-auto/g, '')
+                .replace(/shrink-0/g, '');
+            // 移除所有按钮
+            modalContent.querySelectorAll('button').forEach(b => b.remove());
+            document.getElementById('expand-modal').classList.remove('hidden');
+        }
+
+        function expandGeoAlert() {
+            const container = document.getElementById('geo-alert-container');
+            const modalContent = document.getElementById('expand-modal-content');
+            // 加上更新时间标题
+            const timeText = document.getElementById('geo-alert-time').innerText;
+            modalContent.innerHTML = '<div class="text-base text-slate-400 border-b border-slate-700 pb-3 mb-4">地缘冲突与货运预警 &mdash; ' + timeText + '</div>'
+                + container.innerHTML
+                    .replace(/text-\[10px\]/g, 'text-sm')
+                    .replace(/text-xs/g, 'text-sm')
+                    .replace(/text-sm/g, 'text-base')
+                    .replace(/p-3/g, 'p-5')
+                    .replace(/gap-1/g, 'gap-2');
+            document.getElementById('expand-modal').classList.remove('hidden');
+        }
+
+        function closeExpandModal() {
+            document.getElementById('expand-modal').classList.add('hidden');
         }
     </script>
 </body>
