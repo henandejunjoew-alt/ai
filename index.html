@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>河南德钧AI工具台</title>
-    <link rel="icon" href="德钧-logo标志无文字.png">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22 fill=%22%2306b6d4%22 font-weight=%22bold%22>DJ</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -125,8 +125,9 @@
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-sm font-bold text-indigo-300">神经网络翻译 / 行业术语专供</h2>
                     <div class="flex items-center gap-2">
-                        <span class="text-xs text-slate-400 bg-black/40 px-3 py-1 rounded border border-white/10">英语</span>
-                        <input type="text" id="trans-custom-lang" class="w-24 h-7 text-xs px-2">
+                        <span onclick="setTransLang('英语')" class="text-xs text-cyan-400 bg-black/40 px-3 py-1 rounded border border-cyan-500/30 cursor-pointer hover:bg-cyan-900/30 transition">英语 (默认)</span>
+                        <span onclick="setTransLang('中文')" class="text-xs text-slate-400 bg-black/40 px-3 py-1 rounded border border-white/10 cursor-pointer hover:bg-slate-700/30 transition">中文</span>
+                        <input type="text" id="trans-custom-lang" class="w-24 h-7 text-xs px-2" placeholder="或自行输入">
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -255,6 +256,15 @@
         let userHistory = JSON.parse(localStorage.getItem('crane_history_v6') || '[]');
         let pendingPossibilities = [];
         let pendingEntityName = '';
+
+        function getDatePrefix() {
+            const now = new Date();
+            return '现在是' + now.getFullYear() + '年' + (now.getMonth()+1) + '月' + now.getDate() + '日。';
+        }
+
+        function setTransLang(lang) {
+            document.getElementById('trans-custom-lang').value = lang;
+        }
 
         document.addEventListener('DOMContentLoaded', function() {
             const keyInput = document.getElementById('api-key-input');
@@ -407,7 +417,7 @@
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authKey}` },
                     body: JSON.stringify({
                         model: AI_MODEL,
-                        messages: [{"role": "user", "content": `根据公司名称"${name}"，推测其可能的所在地（国家、城市）和所属行业。如果存在多个同名公司分布在不同国家或不同行业，请全部列出。
+                        messages: [{"role": "user", "content": `${getDatePrefix()}根据公司名称"${name}"，推测其可能的所在地（国家、城市）和所属行业。如果存在多个同名公司分布在不同国家或不同行业，请全部列出。
 返回纯JSON格式（不要 markdown 标记）：
 {"possibilities": [{"country": "中国", "city": "上海", "industry": "重型机械"}, ...]}
 至少返回一个结果。如果无法确定，country 设为"未知"。`}],
@@ -476,6 +486,7 @@
                 </div>`;
 
             const promptText = `
+                ${getDatePrefix()}
                 你是一个拥有20年经验的跨国大客户销售总监和企业背调专家。
                 请对实体"${name}"（${country || '未知'}，${city || '未知'}，${industry || '未知'}）进行深度的商业分析和背调分析。
 
@@ -629,7 +640,8 @@
                     body: JSON.stringify({
                         model: AI_MODEL,
                         messages: [{"role": "user", "content": `你是一个地缘政治与物流风险分析师，专门服务起重机出口行业。
-请提供最近5天内（当前日期2026年4月24日）全球范围内对起重机/重型机械出口有影响的地缘冲突事件和货运物流预警，最多5条。
+${getDatePrefix()}
+请提供最近5天内全球范围内对起重机/重型机械出口有影响的地缘冲突事件和货运物流预警，最多5条。
 每条都必须包含事件发生的具体日期（以北京时间为准）。
 返回纯JSON格式（不要 markdown 标记）：
 {
@@ -759,6 +771,7 @@
                     body: JSON.stringify({
                         model: AI_MODEL,
                         messages: [{"role": "user", "content": `你是一个地缘政治与经济风险分析师，专门服务起重机出口行业。
+${getDatePrefix()}
 请对目标地区/国家"${country}"进行以下5个维度的风险分析。要求每个维度至少150字的深度分析。
 
 1. 政治风险：政局稳定性、政策连续性、政府管控手段（如断网、宵禁等）
@@ -906,7 +919,6 @@
             modalContent.querySelectorAll('button').forEach(b => b.remove());
             document.getElementById('expand-modal').classList.remove('hidden');
         }
-    </script>
 
         // ==========================================
         // 放大与折叠功能
