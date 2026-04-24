@@ -16,6 +16,7 @@
                     animation: {
                         'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
                         'scanline': 'scanline 8s linear infinite',
+                        'fadeIn': 'fadeIn 0.6s ease-out',
                     },
                     keyframes: {
                         shake: {
@@ -27,6 +28,10 @@
                         scanline: {
                             '0%': { transform: 'translateY(-100%)' },
                             '100%': { transform: 'translateY(100vh)' }
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
                         }
                     }
                 }
@@ -34,8 +39,13 @@
         }
     </script>
 <style>
-        body { 
-            background: radial-gradient(circle at 50% -20%, #1e1b4b, #0f172a, #000000); 
+        body {
+            background:
+                radial-gradient(circle at 50% -20%, #1e1b4b, #0f172a, #020617),
+                linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+            background-blend-mode: normal;
             color: #e2e8f0; min-height: 100vh;
             overflow: hidden;
         }
