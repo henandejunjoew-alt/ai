@@ -367,7 +367,7 @@
                 const startDate = new Date();
                 startDate.setFullYear(startDate.getFullYear() - 1);
                 const fmt = (d) => d.toISOString().split('T')[0];
-                const url = 'https://api.frankfurter.app/' + fmt(startDate) + '..' + fmt(endDate) + '?from=USD&to=CNY';
+                const url = 'https://api.frankfurter.dev/v1/' + fmt(startDate) + '..' + fmt(endDate) + '?from=USD&to=CNY';
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('Historical API failed');
                 const data = await response.json();
