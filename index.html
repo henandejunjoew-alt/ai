@@ -284,7 +284,7 @@
         function scrollToSection(id) {
             var el = document.getElementById(id);
             if (!el) return;
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             el.style.outline = '2px solid #ef4444';
             el.style.outlineOffset = '-2px';
             setTimeout(function() {
