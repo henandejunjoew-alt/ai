@@ -6,6 +6,7 @@
     <title>河南德钧AI工具台</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22 fill=%22%2306b6d4%22 font-weight=%22bold%22>DJ</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -89,22 +90,32 @@
 
         <main class="container mx-auto mt-6 px-4 space-y-6">
 
-            <!-- ======== 汇率 + 地区时间查询 ======== -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div class="glass-card rounded-xl px-6 py-5 border-l-4 border-l-cyan-500 flex flex-col justify-center">
-                    <div class="flex justify-between items-center mb-1">
-                        <div class="text-xs text-slate-400">USD/CNY 汇率</div>
-                        <button onclick="fetchExchangeRate()" class="text-[10px] text-cyan-400 hover:text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded transition">刷新</button>
+            <!-- ======== 汇率 + 历史折线图 ======== -->
+            <div class="glass-card rounded-xl px-6 py-5 border-l-4 border-l-cyan-500">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="text-xs text-slate-400">USD/CNY 汇率</div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="expandRateChart()" class="text-[10px] text-slate-400 hover:text-cyan-300 border border-slate-500/40 px-2 py-0.5 rounded transition">放大</button>
+                        <button onclick="refreshAllRates()" class="text-[10px] text-cyan-400 hover:text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded transition">刷新</button>
                     </div>
-                    <div class="text-3xl font-bold text-cyan-400 font-mono tracking-wider" id="usd-cny-rate">获取中...</div>
-                    <div class="text-[9px] text-slate-500 mt-1" id="rate-update-time">等待刷新...</div>
                 </div>
-                <div class="glass-card rounded-xl px-6 py-5 border-l-4 border-l-indigo-500 flex flex-col justify-center">
-                    <div class="text-xs text-slate-400 mb-2">地区时间查询</div>
-                    <div class="flex items-center gap-3">
-                        <input type="text" id="city-time-input" class="flex-1 h-9 text-sm px-3">
-                        <div id="city-time-result" class="text-sm text-cyan-400 whitespace-nowrap">输入城市名自动查询</div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="flex flex-col justify-center">
+                        <div class="text-3xl font-bold text-cyan-400 font-mono tracking-wider" id="usd-cny-rate">获取中...</div>
+                        <div class="text-[9px] text-slate-500 mt-1" id="rate-update-time">等待刷新...</div>
                     </div>
+                    <div class="relative h-[120px]">
+                        <canvas id="rate-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ======== 地区时间查询 ======== -->
+            <div class="glass-card rounded-xl px-6 py-5 border-l-4 border-l-indigo-500 flex flex-col justify-center">
+                <div class="text-xs text-slate-400 mb-2">地区时间查询</div>
+                <div class="flex items-center gap-3">
+                    <input type="text" id="city-time-input" class="flex-1 h-9 text-sm px-3">
+                    <div id="city-time-result" class="text-sm text-cyan-400 whitespace-nowrap">输入城市名自动查询</div>
                 </div>
             </div>
 
@@ -286,6 +297,8 @@
             }
             // 加载持久化的地缘预警
             loadCachedGeoAlerts();
+            // 加载历史汇率折线图
+            fetchHistoricalRates();
         });
 
         // ==========================================
@@ -341,6 +354,96 @@
         }
         fetchExchangeRate();
         setInterval(fetchExchangeRate, 30000);
+
+        // ==========================================
+        // 历史汇率折线图 (Chart.js)
+        // ==========================================
+        let historicalRateData = null;
+        let rateChartInstance = null;
+
+        async function fetchHistoricalRates() {
+            try {
+                const endDate = new Date();
+                const startDate = new Date();
+                startDate.setFullYear(startDate.getFullYear() - 1);
+                const fmt = (d) => d.toISOString().split('T')[0];
+                const url = 'https://api.frankfurter.app/' + fmt(startDate) + '..' + fmt(endDate) + '?from=USD&to=CNY';
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Historical API failed');
+                const data = await response.json();
+                const rates = data.rates;
+                const dates = Object.keys(rates).sort();
+                const values = dates.map(function(d) { return rates[d].CNY; });
+                historicalRateData = { dates: dates, values: values };
+                renderRateChart(dates, values, 'rate-chart');
+            } catch (e) {
+                console.error('历史汇率获取失败:', e);
+            }
+        }
+
+        function renderRateChart(dates, values, canvasId) {
+            var canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            if (rateChartInstance && canvasId === 'rate-chart') {
+                rateChartInstance.destroy();
+                rateChartInstance = null;
+            }
+            // 每月显示一个标签
+            var labels = dates.map(function(d, i) {
+                var parts = d.split('-');
+                return i % Math.ceil(dates.length / 12) === 0 ? parts[0] + '/' + parts[1] : '';
+            });
+
+            var ctx = canvas.getContext('2d');
+            var chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'USD/CNY',
+                        data: values,
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.08)',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            ticks: { color: '#64748b', font: { size: 9 }, maxRotation: 0 },
+                            grid: { color: 'rgba(100, 116, 139, 0.1)' }
+                        },
+                        y: {
+                            ticks: { color: '#64748b', font: { size: 9 } },
+                            grid: { color: 'rgba(100, 116, 139, 0.1)' }
+                        }
+                    }
+                }
+            });
+            if (canvasId === 'rate-chart') {
+                rateChartInstance = chart;
+            }
+        }
+
+        async function refreshAllRates() {
+            await Promise.all([fetchExchangeRate(), fetchHistoricalRates()]);
+        }
+
+        function expandRateChart() {
+            if (!historicalRateData) return;
+            var modalContent = document.getElementById('expand-modal-content');
+            modalContent.innerHTML = '<div class="h-[60vh]"><canvas id="expand-rate-chart"></canvas></div>';
+            document.getElementById('expand-modal').classList.remove('hidden');
+            setTimeout(function() {
+                renderRateChart(historicalRateData.dates, historicalRateData.values, 'expand-rate-chart');
+            }, 100);
+        }
 
         // ==========================================
         // 时区渲染（两列，含工作状态）
