@@ -164,8 +164,19 @@
                                 <p class="text-[10px] text-amber-400">AI 演算结果仅供参考，请结合实际商业经验判断。</p>
                             </div>
                             <button onclick="startDiagnosis()" class="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white py-3.5 rounded-lg transition transform active:scale-95 text-xs tracking-widest mt-auto border border-cyan-400/50">
-                                开始分析
+                                分析客户公司
                             </button>
+
+                            <div class="border-t border-slate-700 pt-5 mt-2">
+                                <p class="text-[10px] text-slate-500 mb-3 tracking-wider">—— 地区 / 国家风险分析 ——</p>
+                                <div>
+                                    <label class="input-label">目标地区 / 国家</label>
+                                    <input type="text" id="in-country-name" class="w-full">
+                                </div>
+                                <button onclick="runCountryAnalysis()" class="w-full bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-500 hover:to-red-500 text-white py-3 rounded-lg text-xs tracking-widest mt-3 border border-amber-400/50">
+                                    分析地区
+                                </button>
+                            </div>
                         </div>
 
                         <div class="lg:col-span-3 bg-black/60 rounded-xl p-6 border border-white/5 relative overflow-hidden min-h-[350px]" id="diag-result">
@@ -723,15 +734,179 @@
         // ==========================================
         // 反馈收集
         // ==========================================
-        function submitFeedback() {
-            const val = document.getElementById('bug-report').value.trim();
-            if (!val) return;
-            fetch("https://formspree.io/f/xzdybnpg", {
-                method: 'POST',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                body: JSON.stringify({ "反馈来源": "AI指挥舱", "内容": val, "时间": new Date().toLocaleString() })
-            }).then(r => { if (r.ok) { alert("回传成功！"); document.getElementById('bug-report').value = ""; }});
+        // 地区/国家风险分析 + 应对建议
+        // ==========================================
+        let _countryData = {};
+
+        async function runCountryAnalysis() {
+            const authKey = getApiKey();
+            const country = document.getElementById('in-country-name').value.trim();
+            if (!authKey) { alert("未检测到 API 密钥，请在顶部输入。"); return; }
+            if (!country) { alert("请输入目标地区或国家名称。"); return; }
+
+            const diagResult = document.getElementById('diag-result');
+            diagResult.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-amber-400 text-xs animate-pulse">
+                    <div class="w-12 h-12 border-4 border-slate-800 border-t-amber-500 rounded-full animate-spin mb-6 shadow-[0_0_15px_rgba(245,158,11,0.5)]"></div>
+                    <p class="mb-2 tracking-widest text-sm">正在分析地区风险...</p>
+                    <p class="text-[10px] text-slate-500">评估政治、经济、社会、法律、环境五大维度...</p>
+                </div>`;
+
+            try {
+                const response = await fetch(AI_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authKey}` },
+                    body: JSON.stringify({
+                        model: AI_MODEL,
+                        messages: [{"role": "user", "content": `你是一个地缘政治与经济风险分析师，专门服务起重机出口行业。
+请对目标地区/国家"${country}"进行以下5个维度的风险分析。要求每个维度至少150字的深度分析。
+
+1. 政治风险：政局稳定性、政策连续性、政府管控手段（如断网、宵禁等）
+2. 经济风险：汇率波动、外汇管制、通货膨胀率
+3. 社会与通信风险：互联网基础设施、主要沟通工具、商务礼仪与时差
+4. 法律与合规风险：贸易壁垒、劳动法与合同法
+5. 环境与地理风险：物流基建、自然灾害
+
+返回纯JSON格式（不要 markdown 标记）：
+{
+    "is_valid": true,
+    "dimensions": {
+        "political": {"analysis": "政治风险分析", "risk_level": "高/中/低"},
+        "economic": {"analysis": "经济风险分析", "risk_level": "高/中/低"},
+        "social": {"analysis": "社会与通信风险分析", "risk_level": "高/中/低"},
+        "legal": {"analysis": "法律与合规风险分析", "risk_level": "高/中/低"},
+        "environmental": {"analysis": "环境与地理风险分析", "risk_level": "高/中/低"}
+    },
+    "conclusion": "一句话总结"
+}`}],
+                        temperature: 0.3
+                    })
+                });
+                if (!response.ok) throw new Error("API 异常");
+                const data = await response.json();
+                let rawContent = data.choices[0].message.content.trim();
+                const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error("JSON 解析失败");
+                const result = JSON.parse(jsonMatch[0]);
+
+                if (result.is_valid === false) {
+                    diagResult.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-amber-500"><p class="font-bold">无法分析该地区</p></div>';
+                    return;
+                }
+
+                _countryData = {
+                    country: country,
+                    dimensions: result.dimensions,
+                    conclusion: result.conclusion
+                };
+
+                const levelColor = (l) => { if (l === '高') return 'text-red-400'; if (l === '中') return 'text-amber-400'; return 'text-emerald-400'; };
+                const levelBg = (l) => { if (l === '高') return 'border-red-500/30 border-l-red-500'; if (l === '中') return 'border-amber-500/30 border-l-amber-500'; return 'border-emerald-500/30 border-l-emerald-500'; };
+                const levelTitle = (l) => { if (l === '高') return 'text-red-400'; if (l === '中') return 'text-amber-400'; return 'text-emerald-400'; };
+
+                const dims = [
+                    { key: 'political', label: '政治风险', color: 'red' },
+                    { key: 'economic', label: '经济风险', color: 'amber' },
+                    { key: 'social', label: '社会与通信风险', color: 'blue' },
+                    { key: 'legal', label: '法律与合规风险', color: 'indigo' },
+                    { key: 'environmental', label: '环境与地理风险', color: 'emerald' }
+                ];
+
+                diagResult.innerHTML = `
+                    <div class="relative z-10 animate-fadeIn h-full flex flex-col">
+                        <div class="mb-4 border-b border-slate-700 pb-4 shrink-0">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="font-black text-2xl text-white tracking-wide">${country}</h3>
+                                    <p class="text-[10px] text-amber-400 mt-1">地区 / 国家风险分析报告</p>
+                                </div>
+                                <button onclick="expandCountryAnalysis()" class="shrink-0 border border-slate-500/40 text-slate-400 hover:bg-slate-700/30 px-2 py-1 rounded text-[10px] transition ml-2">放大</button>
+                            </div>
+                        </div>
+                        <div class="flex-1 overflow-y-auto pr-2 space-y-4 pb-4">
+                            ${dims.map(d => {
+                                const dim = result.dimensions[d.key];
+                                if (!dim) return '';
+                                const lvl = dim.risk_level || '中';
+                                return `<div class="bg-slate-900/50 p-4 rounded-lg border ${levelBg(lvl)} border-l-4 hover:bg-slate-800/80 transition">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <p class="text-${d.color}-400 font-bold text-xs tracking-widest">${d.label}</p>
+                                        <span class="${levelColor(lvl)} text-[10px] font-bold px-2 py-0.5 rounded bg-black/40">风险等级：${lvl}</span>
+                                    </div>
+                                    <p class="text-slate-300 text-[11px] leading-relaxed">${dim.analysis}</p>
+                                    <button onclick="showCopingAdvice('${d.key}')" class="mt-3 text-[10px] text-cyan-400 hover:text-cyan-300 border border-cyan-500/30 px-3 py-1 rounded transition">应对建议</button>
+                                    <div id="advice-${d.key}" class="hidden mt-3 p-3 bg-slate-800/60 rounded border border-cyan-500/20 text-[11px] text-slate-300 leading-relaxed"></div>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                        <div class="shrink-0 pt-4 mt-2 border-t border-slate-700">
+                            <p class="text-slate-300 text-[11px] italic">${result.conclusion || ''}</p>
+                        </div>
+                    </div>`;
+            } catch (error) {
+                console.error(error);
+                diagResult.innerHTML = '<div class="flex flex-col items-center justify-center h-full"><p class="text-red-500 font-bold text-sm mb-3">系统错误</p><p class="text-red-400/70 text-[10px]">API 调用失败，请检查密钥和网络。</p></div>';
+            }
         }
+
+        async function showCopingAdvice(dimension) {
+            const authKey = getApiKey();
+            if (!authKey) { alert("未检测到 API 密钥，请在顶部输入。"); return; }
+            const country = _countryData.country;
+            const dim = _countryData.dimensions[dimension];
+            if (!dim) return;
+
+            const adviceDiv = document.getElementById('advice-' + dimension);
+            if (!adviceDiv.classList.contains('hidden')) {
+                adviceDiv.classList.add('hidden');
+                return;
+            }
+            adviceDiv.classList.remove('hidden');
+            adviceDiv.innerHTML = '<span class="text-cyan-400 animate-pulse">正在分析应对策略...</span>';
+
+            try {
+                const response = await fetch(AI_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authKey}` },
+                    body: JSON.stringify({
+                        model: AI_MODEL,
+                        messages: [{"role": "user", "content": `你是起重机出口行业的风险应对专家。
+针对${country}的以下风险情况，请给出具体的应对建议和商务策略，帮助起重机出口企业规避风险、把握机会。
+
+风险维度：${dimension}
+风险详情：${dim.analysis}
+
+请用中文回答，列出3-5条具体可行的建议，每条建议不超过50字。直接列建议，不要引言。`}],
+                        temperature: 0.3
+                    })
+                });
+                if (!response.ok) throw new Error("API 异常");
+                const data = await response.json();
+                adviceDiv.innerHTML = '<div class="text-cyan-400 text-[10px] font-bold mb-1">应对策略：</div>' + data.choices[0].message.content.trim().replace(/\n/g, '<br>');
+            } catch (error) {
+                adviceDiv.innerHTML = '<span class="text-red-400">获取建议失败</span>';
+            }
+        }
+
+        function expandCountryAnalysis() {
+            const result = document.getElementById('diag-result');
+            const modalContent = document.getElementById('expand-modal-content');
+            modalContent.innerHTML = result.innerHTML
+                .replace(/text-\[10px\]/g, 'text-sm')
+                .replace(/text-\[11px\]/g, 'text-base')
+                .replace(/text-xs/g, 'text-sm')
+                .replace(/text-sm/g, 'text-base')
+                .replace(/text-2xl/g, 'text-3xl')
+                .replace(/p-4/g, 'p-5')
+                .replace(/p-3/g, 'p-4')
+                .replace(/space-y-4/g, 'space-y-5')
+                .replace(/h-full/g, '')
+                .replace(/overflow-y-auto/g, '')
+                .replace(/shrink-0/g, '');
+            modalContent.querySelectorAll('button').forEach(b => b.remove());
+            document.getElementById('expand-modal').classList.remove('hidden');
+        }
+    </script>
 
         // ==========================================
         // 放大与折叠功能
