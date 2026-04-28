@@ -308,7 +308,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">刷新确认版本...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-28 07:22:45" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -2435,11 +2435,8 @@ Hunter邮箱详情：${hunterInfo}
         (function() {
             const el = document.getElementById('deploy-footer');
             if (!el) return;
-            const now = new Date();
-            const pad = n => String(n).padStart(2, '0');
-            const dateStr = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate()) +
-                ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
-            el.textContent = 'v' + dateStr + ' CST';
+            const ts = el.getAttribute('data-ts');
+            if (ts) el.textContent = 'v' + ts + ' CST';
         })();
     </script>
 </body>
