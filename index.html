@@ -91,6 +91,9 @@
                 <div class="flex items-center gap-2">
                     <span class="text-[10px] text-slate-400 bg-black/40 px-2 py-1 rounded border border-white/10">deepseek</span>
                     <input type="password" id="api-key-input" value="" class="h-8 w-36 text-[11px] tracking-wider px-2" autocomplete="off">
+                    <button onclick="openSettings()" class="text-slate-400 hover:text-cyan-400 transition p-1.5 rounded border border-transparent hover:border-cyan-500/30" title="系统设置">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </button>
                     <div class="flex items-center gap-2 bg-emerald-900/30 px-4 py-1.5 rounded-full border border-emerald-700/50 flex-shrink-0">
                         <div class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></div>
                         <span class="text-[10px] text-emerald-400 tracking-wider">系统在线</span>
@@ -168,11 +171,15 @@
             <div id="sec-predict" class="rounded-2xl bg-tech-800 relative z-10 border border-blue-500/30 shadow-[0_0_30px_rgba(59,130,246,0.15)]">
                 <div class="glass-card rounded-2xl p-0 overflow-hidden border-none bg-tech-900/80">
                     <div class="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 p-4 flex justify-between items-center border-b border-white/5">
-                        <h2 class="font-bold text-blue-300 text-sm">预测模型 / 商业情报与背调分析</h2>
+                        <div class="flex gap-1">
+                            <button onclick="switchBizTab()" id="tab-biz-btn" class="text-xs px-3 py-1.5 rounded transition font-bold bg-blue-500/30 text-blue-300 border border-blue-500/40">商业背调</button>
+                            <button onclick="switchReconTab()" id="tab-recon-btn" class="text-xs px-3 py-1.5 rounded transition font-bold text-slate-400 hover:text-cyan-300 border border-transparent">战略侦察</button>
+                        </div>
                     </div>
 
                     <div class="p-6 grid grid-cols-1 lg:grid-cols-5 gap-8">
-                        <div class="lg:col-span-2 flex flex-col gap-4 lg:pr-8 lg:border-r border-white/10">
+                        <!-- ===== 商业背调 Tab ===== -->
+                        <div id="biz-tab-content" class="lg:col-span-2 flex flex-col gap-4 lg:pr-8 lg:border-r border-white/10">
                             <div>
                                 <label class="input-label">目标实体名称</label>
                                 <input type="text" id="in-name" class="w-full">
@@ -200,6 +207,44 @@
                                     分析地区
                                 </button>
                             </div>
+                        </div>
+
+                        <!-- ===== 战略侦察 Tab ===== -->
+                        <div id="recon-tab-content" class="lg:col-span-2 flex-col gap-4 lg:pr-8 lg:border-r border-white/10 hidden">
+                            <div>
+                                <label class="input-label">目标姓名</label>
+                                <input type="text" id="recon-name" class="w-full">
+                            </div>
+                            <div>
+                                <label class="input-label">所属公司</label>
+                                <input type="text" id="recon-company" class="w-full">
+                            </div>
+                            <div>
+                                <label class="input-label">附加上下文（可选）</label>
+                                <textarea id="recon-context" rows="2" class="w-full text-xs"></textarea>
+                            </div>
+
+                            <div id="recon-progress" class="hidden space-y-2">
+                                <div class="flex justify-between text-[10px] text-slate-500">
+                                    <span id="recon-stage-label">初始化...</span>
+                                    <span id="recon-progress-pct">0%</span>
+                                </div>
+                                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                    <div id="recon-progress-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-500" style="width:0%"></div>
+                                </div>
+                                <div class="flex justify-between text-[9px] text-slate-600">
+                                    <span id="stage-1-label" class="text-slate-500">识别目标</span>
+                                    <span id="stage-2-label" class="text-slate-500">Ping 域名</span>
+                                    <span id="stage-3-label" class="text-slate-500">破译联系人</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-amber-900/20 border border-amber-500/30 rounded p-2 text-center">
+                                <p class="text-[10px] text-amber-400">侦察结果仅作为商业参考，请遵守当地法律法规。</p>
+                            </div>
+                            <button onclick="startRecon()" class="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white py-3.5 rounded-lg transition transform active:scale-95 text-xs tracking-widest mt-auto border border-cyan-400/50">
+                                执行战略侦察
+                            </button>
                         </div>
 
                         <div class="lg:col-span-3 bg-black/60 rounded-xl p-6 border border-white/5 relative overflow-hidden min-h-[350px]" id="diag-result">
@@ -258,6 +303,27 @@
         <div class="relative max-w-4xl w-full max-h-[90vh] bg-slate-900 rounded-xl border border-cyan-500/30 p-6 md:p-8 overflow-y-auto">
             <button onclick="closeExpandModal()" class="absolute top-3 right-3 text-slate-400 hover:text-white text-xl leading-none w-8 h-8 flex items-center justify-center rounded hover:bg-slate-800 transition">&times;</button>
             <div id="expand-modal-content" class="text-sm md:text-base text-slate-200 leading-relaxed space-y-4"></div>
+        </div>
+    </div>
+
+    <!-- ======== 系统设置模态框 ======== -->
+    <div id="settings-modal" class="hidden fixed inset-0 z-[999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="relative max-w-md w-full bg-slate-900 rounded-xl border border-cyan-500/30 p-6">
+            <button onclick="closeSettings()" class="absolute top-3 right-3 text-slate-400 hover:text-white text-xl leading-none w-8 h-8 flex items-center justify-center rounded hover:bg-slate-800 transition">&times;</button>
+            <h3 class="text-sm font-bold text-cyan-400 mb-5 tracking-widest">系统设置 / API 密钥</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="input-label">Tavily API Key</label>
+                    <input type="password" id="tavily-key-input" class="w-full h-9 text-xs px-3" placeholder="用于深度网络搜索">
+                    <p class="text-[9px] text-slate-500 mt-1">用于战略侦察阶段的深度网络搜索</p>
+                </div>
+                <div>
+                    <label class="input-label">Hunter.io API Key</label>
+                    <input type="password" id="hunter-key-input" class="w-full h-9 text-xs px-3" placeholder="用于域名邮箱挖掘">
+                    <p class="text-[9px] text-slate-500 mt-1">用于侦察阶段的域名邮箱模式挖掘</p>
+                </div>
+                <button onclick="saveSettings()" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white py-2.5 rounded text-xs font-bold transition tracking-widest border border-cyan-400/50">保存配置</button>
+            </div>
         </div>
     </div>
 
@@ -1086,6 +1152,313 @@ ${getDatePrefix()}
 
         function closeExpandModal() {
             document.getElementById('expand-modal').classList.add('hidden');
+        }
+
+        // ==========================================
+        // 系统设置 (API Keys Management)
+        // ==========================================
+        function openSettings() {
+            document.getElementById('settings-modal').classList.remove('hidden');
+            document.getElementById('tavily-key-input').value = localStorage.getItem('tavily_api_key') || '';
+            document.getElementById('hunter-key-input').value = localStorage.getItem('hunter_api_key') || '';
+        }
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+        function saveSettings() {
+            const tk = document.getElementById('tavily-key-input').value.trim();
+            const hk = document.getElementById('hunter-key-input').value.trim();
+            if (tk) localStorage.setItem('tavily_api_key', tk);
+            if (hk) localStorage.setItem('hunter_api_key', hk);
+            closeSettings();
+        }
+
+        // ==========================================
+        // Tab 切换
+        // ==========================================
+        function switchBizTab() {
+            document.getElementById('biz-tab-content').classList.remove('hidden');
+            document.getElementById('recon-tab-content').classList.add('hidden');
+            document.getElementById('tab-biz-btn').className = 'text-xs px-3 py-1.5 rounded transition font-bold bg-blue-500/30 text-blue-300 border border-blue-500/40';
+            document.getElementById('tab-recon-btn').className = 'text-xs px-3 py-1.5 rounded transition font-bold text-slate-400 hover:text-cyan-300 border border-transparent';
+        }
+        function switchReconTab() {
+            document.getElementById('biz-tab-content').classList.add('hidden');
+            document.getElementById('recon-tab-content').classList.remove('hidden');
+            document.getElementById('tab-recon-btn').className = 'text-xs px-3 py-1.5 rounded transition font-bold bg-cyan-500/30 text-cyan-300 border border-cyan-500/40';
+            document.getElementById('tab-biz-btn').className = 'text-xs px-3 py-1.5 rounded transition font-bold text-slate-400 hover:text-blue-300 border border-transparent';
+        }
+
+        // ==========================================
+        // 战略侦察引擎
+        // ==========================================
+        function updateReconProgress(pct, stageLabel, s0, s1, s2) {
+            document.getElementById('recon-progress-bar').style.width = pct + '%';
+            document.getElementById('recon-progress-pct').innerText = pct + '%';
+            document.getElementById('recon-stage-label').innerText = stageLabel;
+            document.getElementById('stage-1-label').className = 'text-[9px] ' + (s0 || 'text-slate-500');
+            document.getElementById('stage-2-label').className = 'text-[9px] ' + (s1 || 'text-slate-500');
+            document.getElementById('stage-3-label').className = 'text-[9px] ' + (s2 || 'text-slate-500');
+        }
+
+        async function startRecon() {
+            const name = document.getElementById('recon-name').value.trim();
+            const company = document.getElementById('recon-company').value.trim();
+            const tavilyKey = localStorage.getItem('tavily_api_key');
+            const hunterKey = localStorage.getItem('hunter_api_key');
+            const authKey = getApiKey();
+
+            if (!authKey) { alert("未检测到 DeepSeek API 密钥，请在顶部输入。"); return; }
+            if (!tavilyKey) { alert("请先在系统设置中配置 Tavily API 密钥（顶部齿轮图标）。"); return; }
+            if (!hunterKey) { alert("请先在系统设置中配置 Hunter.io API 密钥（顶部齿轮图标）。"); return; }
+            if (!name || !company) { alert("请输入目标姓名和所属公司。"); return; }
+
+            const diagResult = document.getElementById('diag-result');
+            document.getElementById('recon-progress').classList.remove('hidden');
+            updateReconProgress(0, '准备就绪', 'text-slate-500', 'text-slate-500', 'text-slate-500');
+
+            diagResult.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-cyan-400 text-xs animate-pulse">
+                    <div class="w-12 h-12 border-4 border-slate-800 border-t-cyan-500 rounded-full animate-spin mb-6 shadow-[0_0_15px_rgba(6,182,212,0.5)]"></div>
+                    <p class="mb-2 tracking-widest text-sm">启动侦察序列...</p>
+                </div>`;
+
+            try {
+                // Phase 1: Tavily 深度搜索
+                updateReconProgress(10, '正在全网扫描目标数字足迹...', 'text-cyan-400', 'text-slate-500', 'text-slate-500');
+
+                const searchResponse = await fetch('https://api.tavily.com/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        api_key: tavilyKey,
+                        query: `${name} ${company} LinkedIn profile company domain`,
+                        search_depth: 'deep',
+                        include_answer: true,
+                        max_results: 10
+                    })
+                });
+                if (!searchResponse.ok) throw new Error('Tavily API 异常 (' + searchResponse.status + ')');
+                const searchData = await searchResponse.json();
+
+                // 提取 LinkedIn 链接和域名
+                const linkedinUrls = [];
+                let detectedDomain = '';
+                if (searchData.results) {
+                    searchData.results.forEach(r => {
+                        if (r.url && r.url.includes('linkedin.com')) linkedinUrls.push(r.url);
+                        if (r.url) {
+                            try {
+                                const u = new URL(r.url);
+                                const h = u.hostname.replace('www.', '');
+                                if (!h.includes('linkedin') && !h.includes('google') && h.includes('.')) {
+                                    if (!detectedDomain) detectedDomain = h;
+                                }
+                            } catch(e) {}
+                        }
+                    });
+                }
+
+                // 如果没找到域名，再搜一次公司官网
+                if (!detectedDomain) {
+                    updateReconProgress(30, '未发现明确域名，正在扩大搜索范围...', 'text-emerald-400', 'text-slate-500', 'text-slate-500');
+                    const domainResp = await fetch('https://api.tavily.com/search', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            api_key: tavilyKey,
+                            query: `${company} official website domain site linkedin`,
+                            search_depth: 'basic',
+                            max_results: 5
+                        })
+                    });
+                    if (domainResp.ok) {
+                        const domainData = await domainResp.json();
+                        if (domainData.results) {
+                            for (const r of domainData.results) {
+                                try {
+                                    const u = new URL(r.url);
+                                    const h = u.hostname.replace('www.', '');
+                                    if (h.includes('.') && !h.includes('google') && !h.includes('linkedin')) {
+                                        detectedDomain = h; break;
+                                    }
+                                } catch(e) {}
+                            }
+                        }
+                    }
+                }
+
+                // Phase 2: Hunter.io 邮箱挖掘
+                updateReconProgress(50, detectedDomain ? '正在 Ping 目标域名...' : '未发现域名，跳过邮箱挖掘...', 'text-emerald-400', 'text-cyan-400', 'text-slate-500');
+
+                let hunterData = null;
+                if (detectedDomain && hunterKey) {
+                    const hunterResp = await fetch(`https://api.hunter.io/v2/domain-search?domain=${detectedDomain}&api_key=${hunterKey}`);
+                    if (hunterResp.ok) {
+                        hunterData = await hunterResp.json();
+                    }
+                }
+
+                // Phase 3: AI 战术简报
+                updateReconProgress(75, '正在整合情报生成战术简报...', 'text-emerald-400', 'text-emerald-400', 'text-cyan-400');
+
+                await generateReconBrief(name, company, {
+                    linkedinUrls,
+                    detectedDomain,
+                    hunterData,
+                    searchData
+                });
+
+                updateReconProgress(100, '侦察任务完成', 'text-emerald-400', 'text-emerald-400', 'text-emerald-400');
+
+            } catch (error) {
+                console.error(error);
+                diagResult.innerHTML = '<div class="flex flex-col items-center justify-center h-full"><p class="text-red-500 font-bold text-sm tracking-widest mb-3">[SYSTEM ERROR] 侦察任务中断</p><p class="text-red-400/70 text-[10px] text-center max-w-xs">' + (error.message || '未知错误') + '</p></div>';
+            }
+        }
+
+        async function generateReconBrief(name, company, reconData) {
+            const authKey = getApiKey();
+            const diagResult = document.getElementById('diag-result');
+
+            let hunterInfo = '未发现公开邮箱';
+            let emailPattern = '未知';
+            let totalEmails = 0;
+            if (reconData.hunterData && reconData.hunterData.data) {
+                const d = reconData.hunterData.data;
+                if (d.emails && d.emails.length > 0) {
+                    hunterInfo = d.emails.map(e => `${e.value} (${e.type})`).join('; ');
+                    totalEmails = d.emails.length;
+                }
+                emailPattern = d.pattern || '未知';
+            }
+
+            const linkedinInfo = reconData.linkedinUrls.length > 0
+                ? reconData.linkedinUrls.join('\n')
+                : '未发现公开 LinkedIn 资料';
+
+            const domainInfo = reconData.detectedDomain || '未发现';
+
+            const promptText = `
+${getDatePrefix()}
+你是一个顶级商业情报分析师，专门从事企业侦察与竞争对手分析。
+
+目标人物：${name}
+所属公司：${company}
+
+【侦察数据】：
+LinkedIn 资料：
+${linkedinInfo}
+
+公司域名：${domainInfo}
+邮箱模式：${emailPattern}
+发现邮箱数量：${totalEmails}
+邮箱详情：${hunterInfo}
+
+请根据以上情报生成一份专业的【战术简报】，包含以下四个维度：
+
+1. target_profile: 目标人物的背景画像、职位、职业轨迹推测（不少于120字）
+2. company_intel: 目标公司的业务结构、市场定位、技术栈推测（不少于120字）
+3. contact_strategy: 基于邮箱模式和通信渠道的最佳首次接触策略（不少于120字）
+4. risk_ops: 侦察行动的风险评估与反情报建议（不少于80字）
+
+必须严格返回以下JSON格式（不要 markdown 标记）：
+{
+    "is_valid": true,
+    "tags": ["决策链关键节点", "可邮件触达", "高价值目标"],
+    "dimensions": {
+        "target_profile": "...",
+        "company_intel": "...",
+        "contact_strategy": "...",
+        "risk_ops": "..."
+    },
+    "confidence": "高/中/低",
+    "next_step": "下一步行动建议（50字以内）",
+    "conclusion": "一句话总结"
+}
+
+重要：禁止输出评分或百分比数值。只做专业情报分析。语气保持冷酷、专业。严禁出现"作为一个AI..."等废话。`;
+
+            try {
+                const response = await fetch(AI_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authKey}` },
+                    body: JSON.stringify({ model: AI_MODEL, messages: [{"role": "user", "content": promptText}], temperature: 0.3 })
+                });
+                if (!response.ok) throw new Error("AI API 异常");
+                const data = await response.json();
+                let rawContent = data.choices[0].message.content.trim();
+                const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error("JSON 解析失败");
+                const result = JSON.parse(jsonMatch[0]);
+
+                if (result.is_valid === false) {
+                    diagResult.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-amber-500"><p class="font-bold tracking-widest">数据无效</p></div>';
+                    return;
+                }
+
+                // 渲染战术简报
+                const tagsHtml = result.tags ? result.tags.map(t => '<span class="inline-block bg-cyan-900/30 border border-cyan-500/40 px-3 py-1 rounded-full text-[11px] text-cyan-300 mr-2 mb-1 font-medium tracking-wide">' + t + '</span>').join('') : '';
+                let confColor = 'text-amber-400';
+                if (result.confidence === '高') confColor = 'text-emerald-400';
+                else if (result.confidence === '低') confColor = 'text-red-400';
+
+                // 附上原始侦察数据摘要
+                const rawDataHtml = `
+                    <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 mb-4">
+                        <p class="text-[10px] text-slate-500 font-bold mb-2 tracking-wider">原始侦察数据</p>
+                        <div class="grid grid-cols-2 gap-2 text-[10px]">
+                            <div><span class="text-slate-500">域名：</span><span class="text-cyan-300">${domainInfo}</span></div>
+                            <div><span class="text-slate-500">邮箱模式：</span><span class="text-cyan-300">${emailPattern}</span></div>
+                            <div><span class="text-slate-500">发现邮箱：</span><span class="text-cyan-300">${totalEmails} 个</span></div>
+                            <div><span class="text-slate-500">LinkedIn：</span><span class="text-cyan-300">${reconData.linkedinUrls.length} 条</span></div>
+                        </div>
+                    </div>`;
+
+                diagResult.innerHTML = `
+                    <div class="relative z-10 animate-fadeIn h-full flex flex-col">
+                        <div class="mb-4 border-b border-slate-700 pb-4 shrink-0">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1 min-w-0">
+                                    <h3 class="font-black text-2xl text-white tracking-wide">${name}</h3>
+                                    <p class="text-[10px] text-slate-400 mt-1">${company} | 战术侦察简报</p>
+                                </div>
+                                <button onclick="expandDiagnosis()" class="shrink-0 border border-slate-500/40 text-slate-400 hover:bg-slate-700/30 px-2 py-1 rounded text-[10px] transition ml-2">放大</button>
+                            </div>
+                            <div class="flex flex-wrap gap-1 items-center mt-2">
+                                ${tagsHtml}
+                                <span class="ml-auto text-[10px] font-bold ${confColor}">可信度：${result.confidence || '未知'}</span>
+                            </div>
+                        </div>
+                        <div class="flex-1 overflow-y-auto pr-2 space-y-4 pb-4">
+                            ${rawDataHtml}
+                            <div class="bg-slate-900/50 p-4 rounded-lg border border-cyan-500/30 border-l-4 border-l-cyan-500 hover:bg-slate-800/80 transition">
+                                <p class="text-cyan-400 font-bold mb-2 text-xs tracking-widest">目标人物画像</p>
+                                <p class="text-slate-300 text-[11px] leading-relaxed">${result.dimensions.target_profile}</p>
+                            </div>
+                            <div class="bg-slate-900/50 p-4 rounded-lg border border-blue-500/30 border-l-4 border-l-blue-500 hover:bg-slate-800/80 transition">
+                                <p class="text-blue-400 font-bold mb-2 text-xs tracking-widest">公司情报</p>
+                                <p class="text-slate-300 text-[11px] leading-relaxed">${result.dimensions.company_intel}</p>
+                            </div>
+                            <div class="bg-slate-900/50 p-4 rounded-lg border border-emerald-500/30 border-l-4 border-l-emerald-500 hover:bg-slate-800/80 transition">
+                                <p class="text-emerald-400 font-bold mb-2 text-xs tracking-widest">接触策略</p>
+                                <p class="text-slate-300 text-[11px] leading-relaxed">${result.dimensions.contact_strategy}</p>
+                            </div>
+                            <div class="bg-slate-900/50 p-4 rounded-lg border border-rose-500/30 border-l-4 border-l-rose-500 hover:bg-slate-800/80 transition">
+                                <p class="text-rose-400 font-bold mb-2 text-xs tracking-widest">风险与反侦察</p>
+                                <p class="text-slate-300 text-[11px] leading-relaxed">${result.dimensions.risk_ops}</p>
+                            </div>
+                        </div>
+                        <div class="shrink-0 pt-4 mt-2 border-t border-slate-700 space-y-1">
+                            <p class="text-cyan-400 font-bold text-xs tracking-wide">下一步：${result.next_step || ''}</p>
+                            <p class="text-slate-300 text-[11px] italic">${result.conclusion || ''}</p>
+                        </div>
+                    </div>`;
+
+            } catch (error) {
+                console.error(error);
+                diagResult.innerHTML = '<div class="flex flex-col items-center justify-center h-full"><p class="text-red-500 font-bold text-sm tracking-widest mb-3">[SYSTEM ERROR] 简报生成失败</p><p class="text-red-400/70 text-[10px] text-center max-w-xs">AI 合成异常，请检查 API 状态。</p></div>';
+            }
         }
     </script>
 </body>
