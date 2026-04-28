@@ -1462,7 +1462,45 @@ ${getDatePrefix()}
         }
 
         // ==========================================
-        // 终选去重：合并相同号码，保留最高权威/最新来源
+        // scoreCandidate 评分函数
+        // +50 LinkedIn/官方域名, +30 区域匹配, -20 通用前缀, -50 黑名单
+        // ==========================================
+        function scoreCandidate(contact, regionCfg, company) {
+            let score = 0;
+            const sourceUrl = contact.source || '';
+            const u = sourceUrl.toLowerCase();
+            const label = (contact.sourceLabel || '').toLowerCase();
+
+            // +50 LinkedIn / 官方域名
+            if (u.includes('linkedin.com') || label.includes('linkedin')) score += 50;
+            else if (company) {
+                try {
+                    let companyHost = company.toLowerCase().replace(/https?:\/\//, '').replace('www.', '').split('/')[0];
+                    if (companyHost && (u.includes(companyHost) || label.includes(companyHost))) score += 50;
+                } catch(e) {}
+            }
+
+            // +30 区域匹配（电话号码国家码）
+            if (regionCfg && contact.digits) {
+                const digitsNoPlus = contact.digits.replace('+', '');
+                for (const cc of regionCfg.codes) {
+                    if (digitsNoPlus.startsWith(cc)) { score += 30; break; }
+                }
+            }
+
+            // -20 通用前缀（email）
+            if (contact.email && /^(info|sales|office|admin|support|contact|hello|marketing|noreply)@/i.test(contact.email)) {
+                score -= 20;
+            }
+
+            // -50 低质量聚合器
+            if (isBlacklistedDomain(sourceUrl)) score -= 50;
+
+            return score;
+        }
+
+        // ==========================================
+        // 终选去重：合并相同号码，保留所有来源URL
         // ==========================================
         function deduplicatePhones(phones) {
             if (!phones || phones.length === 0) return [];
@@ -1475,29 +1513,38 @@ ${getDatePrefix()}
             }
             const result = [];
             for (const [key, group] of groups) {
-                // 按权威性降序排列
+                // 按 score 降序排列
                 group.sort((a, b) => {
+                    const scoreA = a.score || 0;
+                    const scoreB = b.score || 0;
+                    if (scoreA !== scoreB) return scoreB - scoreA;
                     const authA = getSourceAuthority(a.source, a.sourceLabel);
                     const authB = getSourceAuthority(b.source, b.sourceLabel);
-                    if (authA !== authB) return authB - authA;
-                    // 相同权威，按发布日期最新优先
-                    const dateA = a.publishedDate ? new Date(a.publishedDate).getTime() : 0;
-                    const dateB = b.publishedDate ? new Date(b.publishedDate).getTime() : 0;
-                    return dateB - dateA;
+                    return authB - authA;
                 });
-                // 保留最佳来源，合并信息
+                // 保留最佳来源
                 const best = group[0];
-                if (group.length > 1) {
-                    // 附加上下文片段合并（取权威最高的）
-                    best.dedupCount = group.length;
-                    // 尽量保留更详细的sourceLabel
-                    for (const other of group) {
-                        if (other.sourceLabel && other.sourceLabel.length > (best.sourceLabel || '').length) {
-                            best.sourceLabel = other.sourceLabel;
-                        }
-                        if (other.contextSnippet && !best.contextSnippet) {
-                            best.contextSnippet = other.contextSnippet;
-                        }
+                best.dedupCount = group.length;
+
+                // 智能去重：收集所有唯一来源 URL
+                const allSources = [];
+                const seenUrls = new Set();
+                for (const p of group) {
+                    if (p.source && !seenUrls.has(p.source)) {
+                        seenUrls.add(p.source);
+                        allSources.push({
+                            url: p.source,
+                            label: p.sourceLabel || '',
+                            authority: getSourceAuthority(p.source, p.sourceLabel)
+                        });
+                    }
+                }
+                best.allSources = allSources;
+
+                // 保留最佳上下文片段
+                for (const other of group) {
+                    if (other.contextSnippet && !best.contextSnippet) {
+                        best.contextSnippet = other.contextSnippet;
                     }
                 }
                 result.push(best);
@@ -1632,6 +1679,11 @@ ${getDatePrefix()}
                 const matches = text.match(regex);
                 if (!matches) continue;
                 for (const email of matches) {
+                    // 数据清洗：丢弃非标准格式或无效邮箱
+                    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) continue;
+                    if (/example|test|sample|dummy/i.test(email)) continue;
+                    const domain = email.split('@')[1];
+                    if (!domain || !domain.includes('.')) continue;
                     const key = email.toLowerCase();
                     if (seen.has(key)) continue;
                     seen.add(key);
@@ -1938,38 +1990,37 @@ ${getDatePrefix()}
                 });
                 const mergedEmails = Array.from(emailMap.values());
 
-                // 硬门过滤后的电话已含来源+片段，只需评置信度
-                const uniqueRawPhones = phonesWithSources.map(p => p.raw);
-                const scoredPhones = filterPhonesByRegion(uniqueRawPhones, region, name, company);
-
-                // 合并置信度回带来源的电话
-                const scoreMap = new Map();
-                scoredPhones.forEach(sp => {
-                    const key = sp.digits.slice(-10);
-                    scoreMap.set(key, { confidence: sp.confidence, score: sp.score, countryCode: sp.countryCode, localDigits: sp.localDigits });
+                // scoreCandidate 评分：+50 LinkedIn/官方, +30 区域匹配, -20 通用前缀, -50 黑名单
+                phonesWithSources.forEach(p => {
+                    p.score = scoreCandidate(p, regionCfg, company);
                 });
-                const enrichedPhones = phonesWithSources
-                    .filter(p => scoreMap.has(p.digits.slice(-10)))
-                    .map(p => {
-                        const sc = scoreMap.get(p.digits.slice(-10));
-                        return { ...p, confidence: sc.confidence, score: sc.score, countryCode: p.countryCode || sc.countryCode, localDigits: sc.localDigits };
-                    })
-                    .sort((a, b) => (b.score || 0) - (a.score || 0))
-                    .slice(0, 10); // 留更多供终选去重
 
-                // 终选去重：合并相同号码，保留权威来源
-                const dedupedPhones = deduplicatePhones(enrichedPhones);
+                // 终选去重：合并相同号码，保留所有来源URL
+                const dedupedPhones = deduplicatePhones(phonesWithSources);
                 dedupedPhones.forEach(p => {
                     p.sourceAuthority = getSourceAuthority(p.source, p.sourceLabel);
+                    // 置信度映射
+                    p.confidence = p.score >= 50 ? '高' : p.score >= 20 ? '中' : '低';
                 });
-                dedupedPhones.sort((a, b) => (b.sourceAuthority || 0) - (a.sourceAuthority || 0));
+                dedupedPhones.sort((a, b) => {
+                    if ((b.score || 0) !== (a.score || 0)) return (b.score || 0) - (a.score || 0);
+                    return (b.sourceAuthority || 0) - (a.sourceAuthority || 0);
+                });
 
-                // 为带来源的电话号码添加地理标记
-                enrichedPhones.forEach(p => {
+                // Top 10 硬性限制
+                const finalPhones = dedupedPhones.slice(0, 10);
+
+                // 为号码添加地理标记
+                finalPhones.forEach(p => {
+                    if (!p.countryCode && regionCfg) {
+                        for (const cc of regionCfg.codes) {
+                            if (p.digits.startsWith(cc)) { p.countryCode = cc; break; }
+                        }
+                    }
                     if (!p.geoTag) p.geoTag = geoTagPhone(p.digits, p.countryCode);
                 });
 
-                console.log('[终选] 去重前:', enrichedPhones.length, '→ 去重后:', dedupedPhones.length, '/ 有效:', dedupedPhones.map(p => p.raw + '[' + p.confidence + '|权威' + p.sourceAuthority + ']'));
+                console.log('[终选] scoreCandidate 评分后:', dedupedPhones.length, '→ 最终:', finalPhones.length, '/ 有效:', finalPhones.map(p => p.raw + '[' + p.confidence + '|得分' + p.score + '|来源' + (p.allSources ? p.allSources.length : 1) + ']'));
 
                 const socialUrls = extractSocialUrls(allItems);
                 const whatsAppLinks = extractWhatsApp(allItems);
@@ -1996,9 +2047,8 @@ ${getDatePrefix()}
 
                 updateReconProgress(75, '正在整合情报生成战术简报...', 'text-emerald-400', 'text-emerald-400', 'text-cyan-400');
 
-                // 终选结果
-                const finalPhones = dedupedPhones.slice(0, 5);
-                const preDedupCount = enrichedPhones.length;
+                // 终选结果 (top 10 已在上面处理)
+                const preDedupCount = dedupedPhones.length;
 
                 // 保存状态
                 _lastReconState = { name, company, region, industry, discoveredEmails: allEmails, discoveredPhones: finalPhones, detectedDomain, hunterData, socialUrls, whatsAppLinks, allItems };
@@ -2109,17 +2159,25 @@ ${getDatePrefix()}
                         const waUrl = phoneToWhatsAppUrl(p);
                         const geoTag = p.geoTag || '';
                         const freshness = p.publishedDate ? getFreshnessLabel(p.publishedDate) : '';
-                        const srcLabel = p.sourceLabel ? p.sourceLabel.slice(0, 25) : '';
                         const snippet = p.contextSnippet || '';
                         const snippetAttr = snippet.replace(/"/g, '&quot;');
                         const snippetDisplay = snippet
                             ? '<div class="text-[7px] text-slate-600 mt-0.5 truncate max-w-[200px]" title="' + snippetAttr + '">' + snippet.slice(0, 55) + '…</div>'
                             : '';
-                        // 来源行：链接 + 上下文片段
+                        // 智能来源行：列出所有唯一来源链接
+                        const allSources = p.allSources && p.allSources.length > 0 ? p.allSources : [{ url: p.source, label: p.sourceLabel }];
+                        const srcLinks = allSources.map(s => {
+                            const siteName = (function(){
+                                if (!s.url) return '';
+                                try { return new URL(s.url).hostname.replace('www.', '').slice(0, 20); } catch(e) { return s.label.slice(0, 20) || ''; }
+                            })();
+                            const title = s.url ? s.url.replace(/"/g, '&quot;') : '';
+                            return s.url
+                                ? '<a href="' + s.url + '" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 text-[9px] mr-1.5 inline-block" title="' + title + '">[' + siteName + ']</a>'
+                                : '';
+                        }).join('');
                         const srcDisplay = '<div class="leading-tight">' +
-                            (p.source
-                                ? '<a href="' + p.source + '" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 text-[9px]">' + srcLabel + '</a>'
-                                : '<span class="text-slate-500 text-[9px]">Tavily</span>') +
+                            (srcLinks || '<span class="text-slate-500 text-[9px]">Tavily</span>') +
                             snippetDisplay +
                             '</div>';
 
@@ -2214,7 +2272,7 @@ LinkedIn 资料：${(social.linkedin || []).join('; ') || '未发现'}
 Facebook 资料：${(social.facebook || []).join('; ') || '未发现'}
 Instagram 资料：${(social.instagram || []).join('; ') || '未发现'}
 公开邮箱：${discoveredEmails.join('; ') || '未发现'}
-候选号码（区域过滤，最多5个）：${filteredPhones.map(p => p.raw + ' [' + p.confidence + ']' + (p.contextSnippet ? ' 上下文: ' + p.contextSnippet.slice(0, 80) : '')).join('; ') || '未发现'}
+候选号码（区域过滤，最多10个）：${filteredPhones.map(p => p.raw + ' [' + p.confidence + ']' + (p.contextSnippet ? ' 上下文: ' + p.contextSnippet.slice(0, 80) : '')).join('; ') || '未发现'}
 WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
 公司域名：${domainInfo}
 Hunter邮箱模式：${emailPattern}
