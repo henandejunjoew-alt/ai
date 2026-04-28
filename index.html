@@ -320,7 +320,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-28 17:03:23" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-28 17:49:49" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -2011,247 +2011,572 @@ ${getDatePrefix()}
         }
 
         // ==========================================
-        // 战略侦察引擎（多源并行 + 行业过滤）
+        // Accio-Killer: 交互式侦察引擎（Tavily+Hunter+DeepSeek）
         // ==========================================
-        let _lastReconState = null;
+        const RECON_STATE = {
+            phase: 'idle', name: '', company: '', region: '', industry: '',
+            tavilyKey: '', hunterKey: '', authKey: '',
+            regionCfg: null, precisionMode: false,
+            socialItems: [], tradeItems: [], contactItems: [], allItems: [],
+            sniffedPhones: [], discoveredEmails: [], hunterData: null,
+            detectedDomain: '', finalPhones: [], topEmails: [],
+            chatHistory: [], adjustments: [], allAnswers: []
+        };
+        function reconReset() {
+            const k = RECON_STATE;
+            k.phase = 'idle'; k.socialItems = []; k.tradeItems = []; k.contactItems = [];
+            k.allItems = []; k.sniffedPhones = []; k.discoveredEmails = []; k.hunterData = null;
+            k.detectedDomain = ''; k.finalPhones = []; k.topEmails = [];
+            k.chatHistory = []; k.adjustments = []; k.allAnswers = [];
+        }
+        function reconStatus(pct, label) {
+            document.getElementById('recon-stage-label')&&(document.getElementById('recon-stage-label').textContent=label||'');
+            document.getElementById('recon-progress-bar')&&(document.getElementById('recon-progress-bar').style.width=pct+'%');
+            document.getElementById('recon-progress-pct')&&(document.getElementById('recon-progress-pct').textContent=pct+'%');
+        }
+        function addChatMessage(role, html) {
+            RECON_STATE.chatHistory.push({role, html});
+            const box = document.getElementById('chat-messages');
+            if (!box) return;
+            const div = document.createElement('div');
+            div.className = role==='user' ? 'text-right mb-2' : 'mb-2';
+            div.innerHTML = role==='user'
+                ? '<span class="inline-block bg-cyan-900/50 border border-cyan-500/30 rounded-lg px-3 py-1.5 text-[11px] text-cyan-200 max-w-[80%] text-left">' + html + '</span>'
+                : '<div class="text-[11px] text-slate-300 bg-slate-800/50 rounded-lg px-3 py-1.5 border border-slate-700/50">' + html + '</div>';
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
 
-        async function startRecon(filterRegion, industryOverride) {
-            const name = document.getElementById('recon-name').value.trim();
-            const company = document.getElementById('recon-company').value.trim();
-            const region = filterRegion || document.getElementById('recon-region').value.trim();
-            const industry = industryOverride || document.getElementById('recon-industry').value.trim() || '起重机/重型机械';
-            const tavilyKey = localStorage.getItem('tavily_api_key');
-            const hunterKey = localStorage.getItem('hunter_api_key');
-            const authKey = getApiKey();
-
-            if (!authKey) { alert("未检测到 DeepSeek API 密钥，请在顶部输入。"); return; }
-            if (!tavilyKey) { alert("请先在系统设置中配置 Tavily API 密钥（顶部齿轮图标）。"); return; }
-            if (!hunterKey) { alert("请先在系统设置中配置 Hunter.io API 密钥（顶部齿轮图标）。"); return; }
-            if (!name && !company && !region) { alert("请至少填写目标姓名、公司或地区中的一项。"); return; }
-
-            const diagResult = document.getElementById('diag-result');
-            document.getElementById('recon-progress').classList.remove('hidden');
-            document.getElementById('recon-filter-region').classList.add('hidden');
-            updateReconProgress(0, '准备就绪', 'text-slate-500', 'text-slate-500', 'text-slate-500');
-
-            diagResult.innerHTML = `
-                <div class="flex flex-col items-center justify-center h-full text-cyan-400 text-xs animate-pulse">
-                    <div class="w-12 h-12 border-4 border-slate-800 border-t-cyan-500 rounded-full animate-spin mb-6 shadow-[0_0_15px_rgba(6,182,212,0.5)]"></div>
-                    <p class="mb-2 tracking-widest text-sm">启动侦察序列 [行业: ${industry}]...</p>
-                </div>`;
-
-            try {
-                // Phase 1: 多源并行 Tavily 搜索（行业过滤）
-                updateReconProgress(5, '正在多源扫描目标数字足迹 [行业: ' + industry + ']...', 'text-cyan-400', 'text-slate-500', 'text-slate-500');
-
-                const queries = buildReconQueries(name, company, region, industry);
-                if (queries.length === 0) throw new Error('无法生成搜索查询');
-
-                const searchPromises = queries.map(q => tavilySearch(tavilyKey, q));
-                const searchResults = await Promise.all(searchPromises);
-                const validResults = searchResults.filter(Boolean);
-
-                // 合并所有结果
-                const allItems = [];
-                const allAnswers = [];
-                validResults.forEach(d => {
-                    if (d.results) allItems.push(...d.results);
-                    if (d.answer) allAnswers.push(d.answer);
-                });
-
-                // 域名黑名单过滤：剔除黄页/虚假数据源
-                const regionCfg = getRegionCountryCodes(region);
-                const beforeFilter = allItems.length;
-                for (let i = allItems.length - 1; i >= 0; i--) {
-                    if (allItems[i] && isBlacklistedDomain(allItems[i].url)) {
-                        allItems.splice(i, 1);
-                    }
-                }
-                console.log('[硬门] 域名黑名单过滤: ' + beforeFilter + ' → ' + allItems.length + ' 条');
-
-                // 精准模式：精确字符串匹配 — 不包含完整姓名/公司的直接丢弃
-                const precisionMode = getPrecisionMode();
-                if (precisionMode && (name || company)) {
-                    const beforePrecision = allItems.length;
-                    for (let i = allItems.length - 1; i >= 0; i--) {
-                        const item = allItems[i];
-                        if (!item) continue;
-                        const pageText = (item.title || '') + ' ' + (item.content || '') + ' ' + (item.raw_content || '');
-                        let keep = true;
-                        if (name && !pageText.includes(name)) keep = false;
-                        if (company && !pageText.includes(company)) keep = false;
-                        if (!keep) allItems.splice(i, 1);
-                    }
-                    console.log('[精准] 字符串硬匹配过滤: ' + beforePrecision + ' → ' + allItems.length + ' 条');
-                }
-
-                // 提取邮箱、电话、社交链接、域名（带来源归属）
-                const discoveredEmails = [];
-                const rawPhones = [];
-                const allTexts = allItems.map(r => r.title + ' ' + (r.content || '')).concat(allAnswers);
-                allTexts.forEach(t => {
-                    discoveredEmails.push(...extractEmails(t));
-                    rawPhones.push(...extractPhones(t));
-                });
-
-                // Deep Recon: 带来源的提取（含交叉验证）
-                const phonesWithSources = extractPhonesWithSources(allItems, regionCfg, name, company);
-                const emailsWithSources = extractEmailsWithSources(allItems, name, company);
-
-                // 为带来源的电话号码添加地理标记和国家码
-                phonesWithSources.forEach(p => {
-                    const regionCfg = getRegionCountryCodes(region);
-                    if (regionCfg) {
-                        for (const cc of regionCfg.codes) {
-                            if (p.digits.startsWith(cc)) {
-                                p.countryCode = cc;
-                                break;
-                            }
-                        }
-                    }
-                    p.geoTag = geoTagPhone(p.digits, p.countryCode);
-                });
-
-                // 合并去重邮箱（含来源）
-                const emailMap = new Map();
-                emailsWithSources.forEach(e => {
-                    if (!emailMap.has(e.email)) {
-                        emailMap.set(e.email, { email: e.email, sources: [] });
-                    }
-                    emailMap.get(e.email).sources.push({ url: e.source, label: e.sourceLabel });
-                });
-                discoveredEmails.forEach(e => {
-                    if (!emailMap.has(e)) {
-                        emailMap.set(e, { email: e, sources: [{ url: '', label: 'Tavily 搜索结果' }] });
-                    }
-                });
-                const mergedEmails = Array.from(emailMap.values());
-
-                // 邮箱评分 + top 10 限制
-                mergedEmails.forEach(e => {
-                    e.score = scoreCandidate(e, regionCfg, company);
-                });
-                mergedEmails.sort((a, b) => (b.score || 0) - (a.score || 0));
-                const topEmails = mergedEmails.slice(0, 10);
-
-                // scoreCandidate 评分：+50 LinkedIn/官方, +30 区域匹配, -20 通用前缀, -50 黑名单
-                phonesWithSources.forEach(p => {
-                    p.score = scoreCandidate(p, regionCfg, company);
-                });
-
-                // 终选去重：合并相同号码，保留所有来源URL
-                const dedupedPhones = deduplicatePhones(phonesWithSources);
-                dedupedPhones.forEach(p => {
-                    p.sourceAuthority = getSourceAuthority(p.source, p.sourceLabel);
-                    // 置信度映射
-                    p.confidence = p.score >= 50 ? '高' : p.score >= 20 ? '中' : '低';
-                });
-                dedupedPhones.sort((a, b) => {
-                    if ((b.score || 0) !== (a.score || 0)) return (b.score || 0) - (a.score || 0);
-                    return (b.sourceAuthority || 0) - (a.sourceAuthority || 0);
-                });
-
-                // Top 10 硬性限制
-                const finalPhones = dedupedPhones.slice(0, 10);
-
-                // VIP 标记：24小时内发布的号码强制置顶
-                const now = Date.now();
-                finalPhones.forEach(p => {
-                    if (p.publishedDate) {
-                        try {
-                            const pub = new Date(p.publishedDate);
-                            if (!isNaN(pub.getTime()) && (now - pub.getTime()) / 3600000 <= 24) {
-                                p.vip = true;
-                            }
-                        } catch(e) {}
-                    }
-                });
-                finalPhones.sort((a, b) => {
-                    if (a.vip && !b.vip) return -1;
-                    if (!a.vip && b.vip) return 1;
-                    return (b.score || 0) - (a.score || 0);
-                });
-                // 附加联系类型
-                finalPhones.forEach(p => {
-                    p.contactType = getContactType(p.source, p.sourceLabel, p.publishedDate);
-                });
-
-                // [最新动态] 标记：所有号码中发布日期最新的那条（即使超出24h也标记）
-                const phonesWithDate = finalPhones.filter(p => p.publishedDate);
-                if (phonesWithDate.length > 0) {
-                    phonesWithDate.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
-                    phonesWithDate[0].vip = true;
-                }
-
-                // 分离 B2B 低质结果（权威性 ≤10 的默认折叠）
-                const highQualityPhones = finalPhones.filter(p => (p.sourceAuthority || 0) > 10);
-                const lowQualityPhones = finalPhones.filter(p => (p.sourceAuthority || 0) <= 10);
-                if (lowQualityPhones.length > 0) {
-                    console.log('[B2B] 隐藏低质目录结果: ' + lowQualityPhones.length + ' 条');
-                }
-
-                // 为号码添加地理标记
-                finalPhones.forEach(p => {
-                    if (!p.countryCode && regionCfg) {
-                        for (const cc of regionCfg.codes) {
-                            if (p.digits.startsWith(cc)) { p.countryCode = cc; break; }
-                        }
-                    }
-                    if (!p.geoTag) p.geoTag = geoTagPhone(p.digits, p.countryCode);
-                });
-
-                console.log('[终选] scoreCandidate 评分后:', dedupedPhones.length, '→ 最终:', finalPhones.length, '/ 有效:', finalPhones.map(p => p.raw + '[' + p.confidence + '|得分' + p.score + '|来源' + (p.allSources ? p.allSources.length : 1) + ']'));
-
-                const socialUrls = extractSocialUrls(allItems);
-                const whatsAppLinks = extractWhatsApp(allItems);
-                const detectedDomain = extractDomain(allItems);
-
-                updateReconProgress(40, '扫描完成，发现 ' + (socialUrls.linkedin.length + socialUrls.facebook.length + socialUrls.instagram.length) + ' 个社交资料', 'text-emerald-400', 'text-slate-500', 'text-slate-500');
-
-                // Phase 2: Hunter.io 邮箱挖掘
-                updateReconProgress(55, detectedDomain ? '正在 Ping 目标域名: ' + detectedDomain : '未发现明确域名，跳过邮箱挖掘...', 'text-emerald-400', 'text-cyan-400', 'text-slate-500');
-
-                let hunterData = null;
-                if (detectedDomain && hunterKey) {
-                    const hunterResp = await fetch('https://api.hunter.io/v2/domain-search?domain=' + detectedDomain + '&api_key=' + hunterKey);
-                    if (hunterResp.ok) hunterData = await hunterResp.json();
-                }
-
-                // 合并去重邮箱（纯列表用于 AI prompt），只用 Top 10
-                const allEmails = [...new Set(topEmails.map(e => e.email))];
-                if (hunterData && hunterData.data && hunterData.data.emails) {
-                    hunterData.data.emails.forEach(e => {
-                        if (e.value && !allEmails.includes(e.value)) allEmails.push(e.value);
+        // ==========================================
+        // 正则嗅探 — 从 Tavily 片段直接提取号码
+        // ==========================================
+        function regexSniff(items) {
+            const phones = [];
+            const regex = /(?:\+\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}(?:[-.\s]?\d{2,4})?/g;
+            for (const item of items) {
+                if (!item) continue;
+                const text = (item.title||'')+' '+(item.content||'')+' '+(item.raw_content||'');
+                const matches = text.match(regex);
+                if (!matches) continue;
+                for (const raw of matches) {
+                    const digits = raw.replace(/\D/g, '');
+                    if (digits.length<7||digits.length>15) continue;
+                    if (/^(\d)\1{6,}$/.test(digits)) continue;
+                    phones.push({
+                        raw, digits: digits.startsWith('+') ? digits : '+' + digits,
+                        source: item.url||'', sourceLabel: (item.title||'').slice(0,60),
+                        contextSnippet: text.slice(Math.max(0,text.indexOf(raw)-30), Math.min(text.length,text.indexOf(raw)+raw.length+30)).replace(/\s+/g,' ').trim()
                     });
                 }
+            }
+            return phones;
+        }
 
-                updateReconProgress(75, '正在整合情报生成战术简报...', 'text-emerald-400', 'text-emerald-400', 'text-cyan-400');
+        // ==========================================
+        // 交互式侦察入口（Accio-Killer）
+        // ==========================================
+        async function startRecon(filterRegion, industryOverride) {
+            const S = RECON_STATE;
+            reconReset();
+            S.name = document.getElementById('recon-name').value.trim();
+            S.company = document.getElementById('recon-company').value.trim();
+            S.region = filterRegion || document.getElementById('recon-region').value.trim();
+            S.industry = industryOverride || document.getElementById('recon-industry').value.trim() || '起重机/重型机械';
+            S.tavilyKey = localStorage.getItem('tavily_api_key');
+            S.hunterKey = localStorage.getItem('hunter_api_key');
+            S.authKey = getApiKey();
+            S.regionCfg = getRegionCountryCodes(S.region);
+            S.precisionMode = getPrecisionMode();
 
-                // 终选结果 (top 10 已在上面处理)
-                const preDedupCount = dedupedPhones.length;
+            if (!S.authKey) { alert("未检测到 DeepSeek API 密钥"); return; }
+            if (!S.tavilyKey) { alert("请配置 Tavily API 密钥"); return; }
+            if (!S.hunterKey) { alert("请配置 Hunter.io API 密钥"); return; }
+            if (!S.name && !S.company && !S.region) { alert("请至少填写一项"); return; }
 
-                // 保存状态
-                _lastReconState = { name, company, region, industry, discoveredEmails: allEmails, discoveredPhones: finalPhones, detectedDomain, hunterData, socialUrls, whatsAppLinks, allItems };
+            const diag = document.getElementById('diag-result');
+            document.getElementById('recon-progress').classList.remove('hidden');
+            document.getElementById('recon-filter-region').classList.add('hidden');
+            reconStatus(0, '启动 Accio-Killer 侦察序列...');
+            diag.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-cyan-400 text-xs animate-pulse">
+                <div class="w-12 h-12 border-4 border-slate-800 border-t-cyan-500 rounded-full animate-spin mb-6"></div>
+                <p class="tracking-widest text-sm">ACCIO-KILLER 激活 [${S.industry}]</p>
+                <p class="text-[10px] text-slate-500 mt-2">3 路并行扫描 · 正则嗅探 · Hunter 验证</p></div>`;
 
-                await generateReconBrief(name, company, region, industry, {
-                    discoveredEmails: allEmails,
-                    mergedEmails: topEmails,
-                    filteredPhones: highQualityPhones,
-                    lowQualityPhones: lowQualityPhones,
-                    rawPhonesCount: preDedupCount,
-                    detectedDomain,
-                    hunterData,
-                    socialUrls,
-                    whatsAppLinks,
-                    allItems
+            try {
+                // ======== 3 路并行 Tavily 查询 ========
+                reconStatus(5, '社交探测 → 贸易历史 → 联系人挖掘');
+                const qSocial = S.precisionMode
+                    ? `site:facebook.com OR site:linkedin.com "${S.name}" "${S.company}" (phone OR contact) (起重机 OR 工业)`
+                    : `site:facebook.com OR site:linkedin.com "${S.name||S.company}" crane machinery contact phone`;
+                const qTrade = `"${S.company}" (importer OR "bill of lading" OR customs OR 进口商 OR 提单 OR 海关 OR shipment) (起重机 OR 工业)`;
+                const qContact = `"${S.name||''}" "${S.company||''}" (WhatsApp OR 手机号码 OR phone OR mobile OR "+") (起重机 OR 工业)`;
+
+                const [resSocial, resTrade, resContact] = await Promise.all([
+                    tavilySearch(S.tavilyKey, qSocial),
+                    tavilySearch(S.tavilyKey, qTrade),
+                    tavilySearch(S.tavilyKey, qContact)
+                ]);
+
+                S.socialItems = (resSocial&&resSocial.results)||[];
+                S.tradeItems = (resTrade&&resTrade.results)||[];
+                S.contactItems = (resContact&&resContact.results)||[];
+                S.allItems = [...S.socialItems, ...S.tradeItems, ...S.contactItems];
+                S.allAnswers = [(resSocial&&resSocial.answer)||'',(resTrade&&resTrade.answer)||'',(resContact&&resContact.answer)||''].filter(Boolean);
+                console.log('[Accio] 社交:',S.socialItems.length,'贸易:',S.tradeItems.length,'联系人:',S.contactItems.length);
+
+                reconStatus(30, '正则嗅探号码模式...');
+
+                // ======== 正则嗅探 ========
+                const sniffed = regexSniff(S.allItems);
+                S.sniffedPhones = sniffed;
+                console.log('[嗅探] 从摘要嗅探到', sniffed.length, '个号码');
+
+                // ======== 域名提取 + Hunter 验证 ========
+                const domain = extractDomain(S.allItems);
+                S.detectedDomain = domain;
+                reconStatus(45, domain ? 'Hunter 邮箱验证: '+domain : '未发现明确域名');
+
+                if (domain && S.hunterKey) {
+                    try {
+                        const hr = await fetch('https://api.hunter.io/v2/domain-search?domain='+domain+'&api_key='+S.hunterKey);
+                        if (hr.ok) S.hunterData = await hr.json();
+                    } catch(e) {}
+                }
+
+                // ======== 处理数据 ========
+                reconStatus(60, '清洗 → 评分 → 去重');
+                const allTexts = S.allItems.map(r=>r.title+' '+(r.content||'')).concat(S.allAnswers);
+                const rawEmails = [];
+                allTexts.forEach(t=>rawEmails.push(...extractEmails(t)));
+
+                const phonesWS = extractPhonesWithSources(S.allItems, S.regionCfg, S.name, S.company);
+                const emailsWS = extractEmailsWithSources(S.allItems, S.name, S.company);
+                phonesWS.forEach(p=>{p.score=scoreCandidate(p,S.regionCfg,S.company);});
+                const deduped = deduplicatePhones(phonesWS);
+                deduped.forEach(p=>{
+                    p.sourceAuthority=getSourceAuthority(p.source,p.sourceLabel);
+                    p.confidence=p.score>=50?'高':p.score>=20?'中':'低';
+                });
+                deduped.sort((a,b)=>(b.score||0)-(a.score||0));
+                S.finalPhones = deduped.slice(0,10);
+                S.finalPhones.forEach(p=>{
+                    if(!p.countryCode&&S.regionCfg) for(const cc of S.regionCfg.codes){if(p.digits.startsWith(cc)){p.countryCode=cc;break;}}
+                    if(!p.geoTag) p.geoTag=geoTagPhone(p.digits,p.countryCode);
+                    p.contactType=getContactType(p.source,p.sourceLabel,p.publishedDate);
                 });
 
+                const emailMap = new Map();
+                emailsWS.forEach(e=>{
+                    if(!emailMap.has(e.email)) emailMap.set(e.email,{email:e.email,sources:[]});
+                    emailMap.get(e.email).sources.push({url:e.source,label:e.sourceLabel});
+                });
+                rawEmails.forEach(e=>{if(!emailMap.has(e)) emailMap.set(e,{email:e,sources:[{url:'',label:'Tavily'}]});});
+                const merged = Array.from(emailMap.values());
+                merged.forEach(e=>{e.score=scoreCandidate(e,S.regionCfg,S.company);});
+                merged.sort((a,b)=>(b.score||0)-(a.score||0));
+                S.topEmails = merged.slice(0,10);
+
+                reconStatus(80, '正在生成中间简报...');
+
+                // ======== 中间简报 + 聊天窗口 ========
+                S.phase = 'interim';
+                showInterimBrief();
+
+                reconStatus(100, '侦察完成 — 请输入指令或确认合成');
                 document.getElementById('recon-filter-region').classList.remove('hidden');
-                updateReconProgress(100, '侦察任务完成', 'text-emerald-400', 'text-emerald-400', 'text-emerald-400');
 
             } catch (error) {
                 console.error(error);
-                diagResult.innerHTML = '<div class="flex flex-col items-center justify-center h-full"><p class="text-red-500 font-bold text-sm tracking-widest mb-3">[SYSTEM ERROR] 侦察任务中断</p><p class="text-red-400/70 text-[10px] text-center max-w-xs">' + (error.message || '未知错误') + '</p></div>';
+                diag.innerHTML = '<div class="flex flex-col items-center justify-center h-full"><p class="text-red-500 font-bold text-sm tracking-widest mb-3">[SYSTEM ERROR] 侦察中断</p><p class="text-red-400/70 text-[10px] text-center max-w-xs">'+(error.message||'未知错误')+'</p></div>';
+            }
+        }
+
+        // ==========================================
+        // 中间简报 + 聊天窗口渲染
+        // ==========================================
+        function showInterimBrief() {
+            const S = RECON_STATE;
+            const diag = document.getElementById('diag-result');
+            const socialCount = S.socialItems.length;
+            const tradeCount = S.tradeItems.length;
+            const contactCount = S.contactItems.length;
+            const phoneCount = S.finalPhones.length;
+            const emailCount = S.topEmails.length;
+            const sniffCount = S.sniffedPhones.length;
+            const hunterEmails = S.hunterData&&S.hunterData.data&&S.hunterData.data.emails ? S.hunterData.data.emails.length : 0;
+
+            // Build results summary
+            let phoneRows = '';
+            S.finalPhones.slice(0,5).forEach((p,i)=>{
+                const wa=p.source&&(p.source.includes('wa.me')||p.source.includes('whatsapp'))?' <span class="text-emerald-400">[WA]</span>':'';
+                phoneRows += '<div class="flex items-center gap-2 text-[10px] py-0.5"><span class="text-slate-500 w-4 text-right">'+(i+1)+'.</span><span class="text-cyan-300 font-mono">'+p.raw+'</span>'+wa+'<span class="text-slate-600 text-[9px]">'+p.contactType+'</span></div>';
+            });
+
+            let emailRows = '';
+            S.topEmails.slice(0,3).forEach(e=>{
+                emailRows += '<div class="text-[10px] text-emerald-300 font-mono py-0.5">'+e.email+'</div>';
+            });
+
+            // Build chat messages from history
+            let chatHtml = '';
+            S.chatHistory.forEach(msg=>{
+                chatHtml += msg.role==='user'
+                    ? '<div class="text-right mb-2"><span class="inline-block bg-cyan-900/50 border border-cyan-500/30 rounded-lg px-3 py-1.5 text-[11px] text-cyan-200 max-w-[80%] text-left">'+msg.html+'</span></div>'
+                    : '<div class="mb-2"><div class="text-[11px] text-slate-300 bg-slate-800/50 rounded-lg px-3 py-1.5 border border-slate-700/50">'+msg.html+'</div></div>';
+            });
+
+            diag.innerHTML = `
+                <div class="h-full flex flex-col animate-fadeIn">
+                    <div class="shrink-0 border-b border-slate-700 pb-3 mb-3">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-sm font-bold text-cyan-400 tracking-wider">⚡ 中间简报 — ${S.name||S.company||S.region}</h3>
+                            <div class="flex gap-2">
+                                <button onclick="finalSynthesis()" class="bg-emerald-600/40 hover:bg-emerald-600/60 text-emerald-300 border border-emerald-500/40 px-3 py-1 rounded text-[10px] tracking-wider transition">确认 → 合成报告</button>
+                            </div>
+                        </div>
+                        <p class="text-[9px] text-slate-500 mt-1">域: ${S.detectedDomain||'未发现'} | Hunter: ${hunterEmails>0?hunterEmails+'个':'无'} | 精准模式: ${S.precisionMode?'开':'关'}</p>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto space-y-3 pr-1">
+                        <!-- 3路扫描摘要 -->
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="bg-slate-900/60 border border-blue-500/30 rounded-lg p-2 text-center">
+                                <p class="text-[18px] font-bold text-blue-400">${socialCount}</p>
+                                <p class="text-[8px] text-slate-500 tracking-wider">社交探测</p>
+                            </div>
+                            <div class="bg-slate-900/60 border border-amber-500/30 rounded-lg p-2 text-center">
+                                <p class="text-[18px] font-bold text-amber-400">${tradeCount}</p>
+                                <p class="text-[8px] text-slate-500 tracking-wider">贸易历史</p>
+                            </div>
+                            <div class="bg-slate-900/60 border border-rose-500/30 rounded-lg p-2 text-center">
+                                <p class="text-[18px] font-bold text-rose-400">${contactCount}</p>
+                                <p class="text-[8px] text-slate-500 tracking-wider">联系人挖掘</p>
+                            </div>
+                        </div>
+
+                        <!-- 嗅探结果 -->
+                        <div class="bg-slate-900/50 border border-cyan-500/30 rounded-lg p-3">
+                            <p class="text-[10px] text-cyan-400 font-bold mb-1 tracking-wider">📡 正则嗅探 <span class="text-slate-500 font-normal">(${sniffCount} 个原始信号)</span></p>
+                            ${phoneRows||'<p class="text-[10px] text-slate-600">未嗅探到有效号码</p>'}
+                            ${emailRows?'<div class="border-t border-slate-700/50 mt-1 pt-1">'+emailRows+'</div>':''}
+                        </div>
+
+                        <!-- 聊天窗口 -->
+                        <div class="border border-slate-700/50 rounded-lg bg-slate-900/40">
+                            <div id="chat-messages" class="h-40 overflow-y-auto p-3 space-y-1" style="scroll-behavior:smooth">
+                                ${chatHtml||'<div class="text-[10px] text-slate-600 text-center pt-12">输入指令调整侦察策略，或点击"合成报告"生成最终情报</div>'}
+                            </div>
+                            <div class="border-t border-slate-700/50 p-2 flex gap-2">
+                                <input type="text" id="chat-input" class="flex-1 h-8 text-xs px-3" placeholder="例如：Facebook 线索已过时，请重点关注海关记录..."
+                                onkeydown="if(event.key==='Enter')sendReconChat()">
+                                <button onclick="sendReconChat()" class="bg-cyan-700/50 hover:bg-cyan-600/50 text-cyan-300 border border-cyan-500/30 px-4 py-1 rounded text-[10px] tracking-wider transition shrink-0">发送</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        // ==========================================
+        // 发送聊天消息 → DeepSeek 解析 → 调整搜索
+        // ==========================================
+        async function sendReconChat() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if (!msg) return;
+            input.value = '';
+            const S = RECON_STATE;
+
+            addChatMessage('user', msg);
+            S.adjustments.push(msg);
+            S.phase = 'adjusting';
+
+            // 显示 AI 思考中
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'chat-loading';
+            loadingDiv.className = 'mb-2';
+            loadingDiv.innerHTML = '<div class="text-[10px] text-slate-500 italic animate-pulse">🧠 DeepSeek 正在解析指令并调整搜索策略...</div>';
+            document.getElementById('chat-messages').appendChild(loadingDiv);
+
+            try {
+                // DeepSeek 解析用户指令
+                const interpretPrompt = `${getDatePrefix()}
+    你是一个侦察策略指挥官。当前目标: ${S.name||'未知'} / ${S.company||'未知'} / ${S.region||'未知'}
+    当前发现: 社交${S.socialItems.length}条, 贸易${S.tradeItems.length}条, 联系人${S.contactItems.length}条, 嗅探号码${S.sniffedPhones.length}个。
+    用户指令: "${msg}"
+
+    请分析用户意图，输出以下JSON格式调整命令（不要markdown标记）：
+    {
+        "intent": "adjust_query" | "refine_filter" | "proceed_final",
+        "target_query_type": "social" | "trade" | "contact" | "all",
+        "new_query": "基于用户指令生成的精确搜索查询（中文关键词优先）",
+        "reason": "为什么做这个调整（一句话）"
+    }`;
+                const resp = await fetch(AI_API_URL, {
+                    method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.authKey},
+                    body: JSON.stringify({model:AI_MODEL, messages:[{role:"user",content:interpretPrompt}], temperature:0.3})
+                });
+                if (!resp.ok) throw new Error('AI 解析失败');
+                const data = await resp.json();
+                const raw = data.choices[0].message.content.trim();
+                const jmatch = raw.match(/\{[\s\S]*\}/);
+                if (!jmatch) throw new Error('JSON 解析失败');
+                const cmd = JSON.parse(jmatch[0]);
+
+                // 移除 loading
+                const ld = document.getElementById('chat-loading');
+                if (ld) ld.remove();
+
+                if (cmd.intent === 'proceed_final') {
+                    addChatMessage('system', '🧠 已收到确认指令，正在生成最终报告...');
+                    await finalSynthesis();
+                    return;
+                }
+
+                // 执行调整后的搜索
+                const newQuery = cmd.new_query || msg;
+                addChatMessage('system', '🔄 调整搜索: '+(cmd.reason||'')+'<br><span class="text-[9px] text-slate-500">查询: '+newQuery.slice(0,120)+'…</span>');
+
+                // 重新查询 Tavily
+                const newResult = await tavilySearch(S.tavilyKey, newQuery);
+                const newItems = (newResult&&newResult.results)||[];
+                if (newItems.length > 0) {
+                    S.allItems = [...S.allItems, ...newItems];
+                    // 重新嗅探
+                    const newSniffed = regexSniff(newItems);
+                    S.sniffedPhones = [...S.sniffedPhones, ...newSniffed];
+                    // 重新处理
+                    const phonesWS = extractPhonesWithSources(newItems, S.regionCfg, S.name, S.company);
+                    phonesWS.forEach(p=>{p.score=scoreCandidate(p,S.regionCfg,S.company);});
+                    const deduped = deduplicatePhones([...S.finalPhones,...phonesWS]);
+                    deduped.forEach(p=>{p.sourceAuthority=getSourceAuthority(p.source,p.sourceLabel);p.confidence=p.score>=50?'高':p.score>=20?'中':'低';});
+                    deduped.sort((a,b)=>(b.score||0)-(a.score||0));
+                    S.finalPhones = deduped.slice(0,10);
+
+                    addChatMessage('system', '✅ 找到 '+newItems.length+' 个新结果，嗅探到 '+newSniffed.length+' 个新号码');
+                } else {
+                    addChatMessage('system', '⚠️ 调整后未发现新结果，建议尝试其他关键词');
+                }
+
+            } catch (e) {
+                const ld = document.getElementById('chat-loading');
+                if (ld) ld.remove();
+                addChatMessage('system', '⚠️ 指令解析异常: '+(e.message||'重试中'));
+                console.error(e);
+            }
+
+            S.phase = 'interim';
+            // 刷新简报但不重置聊天
+            showInterimBrief();
+            // 恢复聊天历史
+            const S2 = RECON_STATE;
+            S2.chatHistory.forEach(msg=>{
+                const box = document.getElementById('chat-messages');
+                if (!box) return;
+                const div = document.createElement('div');
+                div.className = msg.role==='user' ? 'text-right mb-2' : 'mb-2';
+                div.innerHTML = msg.role==='user'
+                    ? '<span class="inline-block bg-cyan-900/50 border border-cyan-500/30 rounded-lg px-3 py-1.5 text-[11px] text-cyan-200 max-w-[80%] text-left">'+msg.html+'</span>'
+                    : '<div class="text-[11px] text-slate-300 bg-slate-800/50 rounded-lg px-3 py-1.5 border border-slate-700/50">'+msg.html+'</div>';
+                box.appendChild(div);
+                box.scrollTop = box.scrollHeight;
+            });
+        }
+
+        // ==========================================
+        // Hunter 穿甲弹验证 → DeepSeek 邮箱猜测
+        // ==========================================
+        async function hunterVerify(name, domain, hunterData) {
+            if (!name || !domain) return [];
+            const guesses = [];
+            // 如果有 Hunter 邮箱模式，按模式生成
+            if (hunterData && hunterData.data && hunterData.data.pattern) {
+                const pattern = hunterData.data.pattern;
+                const firstName = name.split(' ')[0] || '';
+                const lastName = name.split(' ').slice(1).join('') || '';
+                if (pattern.includes('first.last')) {
+                    guesses.push(firstName+'.'+lastName+'@'+domain);
+                    guesses.push(firstName+lastName+'@'+domain);
+                } else if (pattern.includes('first')) {
+                    guesses.push(firstName+'@'+domain);
+                }
+            }
+            // 通用猜测
+            if (guesses.length === 0) {
+                const first = name.split(' ')[0] || '';
+                const last = name.split(' ').slice(1).join('') || '';
+                if (first) guesses.push(first+'@'+domain);
+                if (last) guesses.push(last+'@'+domain);
+                if (first&&last) {
+                    guesses.push(first+'.'+last+'@'+domain);
+                    guesses.push(first+last+'@'+domain);
+                }
+            }
+            return [...new Set(guesses)];
+        }
+
+        // ==========================================
+        // 最终合成 — 专项情报报告（基于 RECON_STATE）
+        // ==========================================
+        async function finalSynthesis() {
+            const S = RECON_STATE;
+            const diag = document.getElementById('diag-result');
+
+            if (!S.authKey) { alert("未检测到 DeepSeek API 密钥"); return; }
+            if (!S.name && !S.company && !S.region) { alert("无侦察数据，请先执行侦察"); return; }
+
+            document.getElementById('recon-progress').classList.remove('hidden');
+            reconStatus(0, 'DeepSeek 综合情报分析中...');
+
+            diag.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-cyan-400 text-xs animate-pulse">
+                    <div class="w-12 h-12 border-4 border-slate-800 border-t-cyan-500 rounded-full animate-spin mb-6"></div>
+                    <p class="tracking-widest text-sm">生成专项情报报告...</p>
+                    <p class="text-[10px] text-slate-500 mt-2">基于 ${S.allItems.length} 条数据源 · ${S.finalPhones.length} 个号码 · ${S.topEmails.length} 个邮箱</p>
+                </div>`;
+
+            try {
+                // 构建号码矩阵
+                const phoneMatrix = S.finalPhones.map((p,i) =>
+                    `[${i+1}] ${p.raw} | ${p.confidence||'低'}置信 | ${p.contactType||'未知'} | ${p.sourceLabel||'来源未知'} ${p.vip?'[最新动态]':''}`
+                ).join('\n') || '未发现联系人号码';
+
+                // 邮箱清单
+                const emailList = S.topEmails.map(e => e.email).join('\n') || '未发现邮箱';
+
+                // Hunter 数据
+                let hunterSummary = '未发现公开邮箱';
+                let emailPattern = '未知';
+                if (S.hunterData && S.hunterData.data) {
+                    const d = S.hunterData.data;
+                    if (d.emails && d.emails.length > 0) {
+                        hunterSummary = d.emails.map(e => e.value + ' (' + e.type + ')').join('; ');
+                    }
+                    emailPattern = d.pattern || '未知';
+                }
+
+                // 社交链接
+                const socialUrls = extractSocialUrls(S.allItems);
+                const socialParts = [];
+                if (socialUrls.linkedin && socialUrls.linkedin.length > 0) socialParts.push('LinkedIn: ' + socialUrls.linkedin.join(', '));
+                if (socialUrls.facebook && socialUrls.facebook.length > 0) socialParts.push('Facebook: ' + socialUrls.facebook.join(', '));
+                const socialSummary = socialParts.join('\n') || '未发现';
+
+                // 贸易数据摘要
+                const tradeTop = S.tradeItems.slice(0, 8);
+                const tradeSummary = tradeTop.map((item,i) =>
+                    `[${i+1}] ${item.title} | ${(item.content||'').slice(0,120)}`
+                ).join('\n') || '未发现贸易记录';
+
+                // 搜索调整历史
+                const adjHistory = S.adjustments.length > 0
+                    ? S.adjustments.map((a,i) => `[调整${i+1}] ${a}`).join('\n')
+                    : '无额外调整';
+
+                reconStatus(30, '正在发送至 DeepSeek 分析引擎...');
+
+                const prompt = `当前时间: ${new Date().toLocaleString('zh-CN', {timeZone:'Asia/Shanghai'})}
+
+你是一个专业商业情报分析师。基于以下侦察数据生成专项情报报告。
+
+## 目标实体
+${[S.name, S.company, S.region, S.industry].filter(Boolean).join(' / ')}
+
+## 联系人矩阵（号码）
+${phoneMatrix}
+
+## 邮箱清单
+${emailList}
+
+## Hunter.io 邮箱情报
+域名: ${S.detectedDomain||'未发现'}
+邮箱模式: ${emailPattern}
+发现邮箱: ${hunterSummary}
+
+## 社交资料
+${socialSummary}
+
+## 贸易记录摘要
+${tradeSummary}
+
+## 搜索调整记录
+${adjHistory}
+
+## 数据统计
+- 社交来源条目: ${S.socialItems.length}
+- 贸易来源条目: ${S.tradeItems.length}
+- 联系人来源条目: ${S.contactItems.length}
+- 嗅探原始信号: ${S.sniffedPhones.length}
+- 最终精选号码: ${S.finalPhones.length}
+- 最终精选邮箱: ${S.topEmails.length}
+
+请输出以下三部分专项情报报告（使用中文，Markdown格式）：
+
+1. **当前活动**：基于时间线的信号分析，判断目标当前商业活跃状态。引用具体发现。
+2. **交易概况**：分析目标在起重机/重型机械产业链中的角色（分销商/终端用户/制造商），指出具体的贸易联系和HS编码相关线索。
+3. **联系人矩阵**：已验证的联系渠道汇总表，按优先级排列，标注来源、置信度和最优联系方式（WhatsApp/电话/邮件）。
+
+要求：
+- 报告语言冷酷、专业，直接输出结论
+- 对每个号码和邮箱标注具体来源URL
+- 如果数据不足，明确说明局限性而非编造
+- 不得出现"作为一个AI"等表述`;
+
+                const resp = await fetch(AI_API_URL, {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json','Authorization':'Bearer '+S.authKey},
+                    body: JSON.stringify({model:AI_MODEL, messages:[{role:"user",content:prompt}], temperature:0.5})
+                });
+                if (!resp.ok) throw new Error('AI 报告生成失败: HTTP '+resp.status);
+                const data = await resp.json();
+                let report = data.choices[0].message.content.trim();
+
+                // 清洗可能的 markdown 代码块包裹
+                if (report.startsWith('```')) {
+                    const firstNl = report.indexOf('\n');
+                    if (firstNl > 0) report = report.slice(firstNl + 1);
+                    if (report.endsWith('```')) report = report.slice(0, -3).trim();
+                }
+
+                reconStatus(80, '渲染情报报告...');
+
+                // 渲染最终报告
+                diag.innerHTML = `
+                    <div class="animate-fadeIn h-full flex flex-col">
+                        <div class="shrink-0 border-b border-slate-700 pb-3 mb-3">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-sm font-bold text-cyan-400 tracking-wider">📋 专项情报报告 — ${S.name||S.company||S.region}</h3>
+                                <div class="flex gap-2">
+                                    <button onclick="showInterimBrief()" class="border border-slate-600/50 text-slate-400 hover:text-slate-300 px-2 py-1 rounded text-[9px] transition">← 返回中间简报</button>
+                                    <button onclick="expandDiagnosis()" class="border border-cyan-600/50 text-cyan-400 hover:text-cyan-300 px-2 py-1 rounded text-[9px] transition">放大</button>
+                                </div>
+                            </div>
+                            <p class="text-[9px] text-slate-500 mt-1">
+                                数据源: ${S.allItems.length} 条 · 号码: ${S.finalPhones.length} · 邮箱: ${S.topEmails.length} · 调整次数: ${S.adjustments.length} · 域: ${S.detectedDomain||'N/A'}
+                            </p>
+                        </div>
+                        <div class="flex-1 overflow-y-auto pr-1">
+                            <div class="glass-card border-l-4 border-l-cyan-500 p-4">
+                                <div class="text-slate-300 text-[11px] leading-relaxed whitespace-pre-wrap">
+                                    ${report.replace(/\*\*(.*?)\*\*/g, '<strong class="text-cyan-400">$1</strong>')}
+                                </div>
+                            </div>
+                            <div class="text-[9px] text-slate-600 text-right border-t border-slate-800 pt-2 mt-2">
+                                报告生成: ${new Date().toLocaleString('zh-CN')} · DeepSeek 综合分析
+                            </div>
+                        </div>
+                    </div>`;
+
+                S.phase = 'complete';
+                reconStatus(100, '情报报告就绪');
+
+            } catch (error) {
+                console.error(error);
+                diag.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full">
+                        <p class="text-rose-500 font-bold text-sm tracking-widest mb-3">[SYSTEM ERROR] 报告生成中断</p>
+                        <p class="text-rose-400/70 text-[10px] text-center max-w-xs">${error.message||'未知错误'}</p>
+                        <button onclick="showInterimBrief()" class="mt-4 border border-slate-600/50 text-slate-400 hover:text-slate-300 px-3 py-1 rounded text-[10px] transition">← 返回中间简报</button>
+                    </div>`;
             }
         }
 
