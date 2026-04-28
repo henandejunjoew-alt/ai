@@ -254,6 +254,18 @@
                                 </div>
                             </div>
 
+                            <!-- 精准匹配赛博开关 -->
+                            <div class="flex items-center justify-between bg-slate-900/60 border border-slate-700/50 rounded-lg px-3 py-2.5">
+                                <div class="flex items-center gap-2">
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="precision-toggle" class="sr-only peer" onchange="updatePrecisionStatus()">
+                                        <div class="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:bg-cyan-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all after:duration-300 after:border after:border-slate-500 shadow-[0_0_6px_rgba(6,182,212,0.3)]"></div>
+                                    </label>
+                                    <span class="text-[10px] text-cyan-400 font-bold tracking-wider">精准匹配</span>
+                                </div>
+                                <span id="precision-status" class="text-[9px] text-slate-500 italic">已启用广泛扫描。我也会向您显示相关线索。</span>
+                            </div>
+
                             <div class="bg-amber-900/20 border border-amber-500/30 rounded p-2 text-center">
                                 <p class="text-[10px] text-amber-400">侦察结果仅作为商业参考，请遵守当地法律法规。</p>
                             </div>
@@ -308,7 +320,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-28 16:36:12" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-28 17:03:23" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -1220,12 +1232,46 @@ ${getDatePrefix()}
         }
 
         // ==========================================
+        // 精准匹配模式
+        // ==========================================
+        function getPrecisionMode() {
+            return document.getElementById('precision-toggle') ? document.getElementById('precision-toggle').checked : false;
+        }
+        function updatePrecisionStatus() {
+            const el = document.getElementById('precision-status');
+            if (!el) return;
+            if (getPrecisionMode()) {
+                el.textContent = '🔍 仅针对特定坐标进行定位。所有干扰信息将被消除。';
+                el.className = 'text-[9px] text-rose-400 italic';
+            } else {
+                el.textContent = '🔍 已启用广泛扫描。我也会向您显示相关线索。';
+                el.className = 'text-[9px] text-slate-500 italic';
+            }
+        }
+
+        // ==========================================
         // 多源侦察查询生成（含行业过滤）
         // ==========================================
         function buildReconQueries(name, company, region, industry) {
             const ind = industry || '起重机 重型机械 工业设备 工程机械';
             const industryFilter = '(起重机 OR 起重 OR 工业 OR 钢铁 OR heavy machinery OR construction)';
             const queries = [];
+            const precisionMode = getPrecisionMode();
+
+            if (precisionMode) {
+                // 精准模式：精确引号 + 强制地区
+                const qName = name ? '"' + name + '"' : '';
+                const qCompany = company ? '"' + company + '"' : '';
+                const qRegion = region ? '"+' + region + '"' : '';
+                const target = [qName, qCompany].filter(Boolean).join(' ');
+
+                queries.push([target, qRegion, 'contact phone WhatsApp email', industryFilter].filter(Boolean).join(' '));
+                queries.push(['site:facebook.com', target, qRegion, '(WhatsApp OR phone OR 联系方式)', industryFilter].filter(Boolean).join(' '));
+                queries.push(['site:linkedin.com/in', target, qRegion, 'contact email phone', industryFilter].filter(Boolean).join(' '));
+                queries.push(['site:instagram.com', target, qRegion, 'contact', industryFilter].filter(Boolean).join(' '));
+                while (queries.length < 4) queries.push([target || 'crane industry', 'contact', industryFilter].filter(Boolean).join(' '));
+                return queries.slice(0, 4);
+            }
 
             // 1. 广泛搜索
             let broadQuery = [name, company, region, '起重机行业', ind].filter(Boolean).join(' ');
@@ -2022,6 +2068,22 @@ ${getDatePrefix()}
                     }
                 }
                 console.log('[硬门] 域名黑名单过滤: ' + beforeFilter + ' → ' + allItems.length + ' 条');
+
+                // 精准模式：精确字符串匹配 — 不包含完整姓名/公司的直接丢弃
+                const precisionMode = getPrecisionMode();
+                if (precisionMode && (name || company)) {
+                    const beforePrecision = allItems.length;
+                    for (let i = allItems.length - 1; i >= 0; i--) {
+                        const item = allItems[i];
+                        if (!item) continue;
+                        const pageText = (item.title || '') + ' ' + (item.content || '') + ' ' + (item.raw_content || '');
+                        let keep = true;
+                        if (name && !pageText.includes(name)) keep = false;
+                        if (company && !pageText.includes(company)) keep = false;
+                        if (!keep) allItems.splice(i, 1);
+                    }
+                    console.log('[精准] 字符串硬匹配过滤: ' + beforePrecision + ' → ' + allItems.length + ' 条');
+                }
 
                 // 提取邮箱、电话、社交链接、域名（带来源归属）
                 const discoveredEmails = [];
