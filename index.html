@@ -212,16 +212,16 @@
                         <!-- ===== 战略侦察 Tab ===== -->
                         <div id="recon-tab-content" class="lg:col-span-2 flex-col gap-4 lg:pr-8 lg:border-r border-white/10 hidden">
                             <div>
-                                <label class="input-label">目标姓名</label>
-                                <input type="text" id="recon-name" class="w-full">
+                                <label class="input-label">目标姓名（可选）</label>
+                                <input type="text" id="recon-name" class="w-full" placeholder="至少填写姓名或公司">
                             </div>
                             <div>
-                                <label class="input-label">所属公司</label>
-                                <input type="text" id="recon-company" class="w-full">
+                                <label class="input-label">公司（可选）</label>
+                                <input type="text" id="recon-company" class="w-full" placeholder="至少填写姓名或公司">
                             </div>
                             <div>
-                                <label class="input-label">附加上下文（可选）</label>
-                                <textarea id="recon-context" rows="2" class="w-full text-xs"></textarea>
+                                <label class="input-label">地区（可选）</label>
+                                <input type="text" id="recon-region" class="w-full" placeholder="例如：美国、东南亚、欧洲">
                             </div>
 
                             <div id="recon-progress" class="hidden space-y-2">
@@ -233,9 +233,20 @@
                                     <div id="recon-progress-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-500" style="width:0%"></div>
                                 </div>
                                 <div class="flex justify-between text-[9px] text-slate-600">
-                                    <span id="stage-1-label" class="text-slate-500">识别目标</span>
+                                    <span id="stage-1-label" class="text-slate-500">多源扫描</span>
                                     <span id="stage-2-label" class="text-slate-500">Ping 域名</span>
-                                    <span id="stage-3-label" class="text-slate-500">破译联系人</span>
+                                    <span id="stage-3-label" class="text-slate-500">整合情报</span>
+                                </div>
+                            </div>
+
+                            <!-- 筛选区域（分析后显示） -->
+                            <div id="recon-filter-region" class="hidden">
+                                <div class="border-t border-slate-700 pt-4">
+                                    <label class="input-label">筛选区域（缩小搜索范围）</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="recon-filter-input" class="flex-1 h-8 text-xs px-2" placeholder="输入地区后点击筛选">
+                                        <button onclick="refineReconByRegion()" class="bg-cyan-700/50 hover:bg-cyan-600/50 text-cyan-300 px-3 py-1 rounded text-[10px] border border-cyan-500/30 transition">筛选</button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1201,9 +1212,110 @@ ${getDatePrefix()}
             document.getElementById('stage-3-label').className = 'text-[9px] ' + (s2 || 'text-slate-500');
         }
 
-        async function startRecon() {
+        // ==========================================
+        // 多源侦察查询生成
+        // ==========================================
+        function buildReconQueries(name, company, region) {
+            const queries = [];
+            if (name && company) {
+                queries.push(`${name} ${company} LinkedIn profile`);
+                queries.push(`${name} ${company} email contact address`);
+                queries.push(`${name} ${company} Facebook page`);
+                if (region) queries.push(`${name} ${company} ${region} contact information`);
+            } else if (name) {
+                queries.push(`${name} LinkedIn profile professional`);
+                queries.push(`${name} email contact information`);
+                queries.push(`${name} Facebook Instagram`);
+                if (region) queries.push(`${name} ${region} contact`);
+            } else if (company) {
+                queries.push(`${company} official website domain email`);
+                queries.push(`${company} LinkedIn company page employees`);
+                queries.push(`${company} Facebook contact`);
+                queries.push(`${company} email format`);
+                if (region) queries.push(`${company} ${region} office location contact`);
+            }
+            if (region && !name && !company) {
+                queries.push(`${region} business directory contact`);
+            }
+            return queries;
+        }
+
+        // ==========================================
+        // 从文本中提取邮箱
+        // ==========================================
+        function extractEmails(text) {
+            if (!text) return [];
+            const regex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+            const matches = text.match(regex);
+            return matches ? [...new Set(matches)] : [];
+        }
+
+        // ==========================================
+        // 从搜索结果中提取社交媒体 URL
+        // ==========================================
+        function extractSocialUrls(results) {
+            const linkedin = [], facebook = [], instagram = [], other = [];
+            for (const r of results) {
+                if (!r || !r.url) continue;
+                const url = r.url;
+                if (url.includes('linkedin.com')) linkedin.push(url);
+                else if (url.includes('facebook.com')) facebook.push(url);
+                else if (url.includes('instagram.com')) instagram.push(url);
+                else other.push(url);
+            }
+            return { linkedin: [...new Set(linkedin)], facebook: [...new Set(facebook)], instagram: [...new Set(instagram)], other: [...new Set(other)] };
+        }
+
+        // ==========================================
+        // 从搜索结果中提取域名
+        // ==========================================
+        function extractDomain(results) {
+            for (const r of results) {
+                if (!r || !r.url) continue;
+                try {
+                    const u = new URL(r.url);
+                    const h = u.hostname.replace('www.', '');
+                    if (h.includes('.') && !h.includes('linkedin') && !h.includes('facebook') && !h.includes('instagram') && !h.includes('google') && !h.includes('twitter') && !h.includes('youtube')) {
+                        return h;
+                    }
+                } catch(e) {}
+            }
+            return '';
+        }
+
+        // ==========================================
+        // 执行单次 Tavily 搜索
+        // ==========================================
+        async function tavilySearch(apiKey, query) {
+            if (!query || query.length < 3) return null;
+            console.log('[侦察] Tavily 并行查询:', query);
+            try {
+                const resp = await fetch('https://api.tavily.com/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ api_key: apiKey, query, search_depth: 'advanced', max_results: 5 })
+                });
+                if (!resp.ok) {
+                    const errBody = await resp.text().catch(() => '');
+                    console.warn('[侦察] Tavily 子查询失败:', query, resp.status, errBody.slice(0, 100));
+                    return null;
+                }
+                return await resp.json();
+            } catch (e) {
+                console.warn('[侦察] Tavily 子查询异常:', query, e.message);
+                return null;
+            }
+        }
+
+        // ==========================================
+        // 战略侦察引擎（多源并行）
+        // ==========================================
+        let _lastReconState = null; // 用于筛选区域重新搜索
+
+        async function startRecon(filterRegion) {
             const name = document.getElementById('recon-name').value.trim();
             const company = document.getElementById('recon-company').value.trim();
+            const region = filterRegion || document.getElementById('recon-region').value.trim();
             const tavilyKey = localStorage.getItem('tavily_api_key');
             const hunterKey = localStorage.getItem('hunter_api_key');
             const authKey = getApiKey();
@@ -1211,10 +1323,11 @@ ${getDatePrefix()}
             if (!authKey) { alert("未检测到 DeepSeek API 密钥，请在顶部输入。"); return; }
             if (!tavilyKey) { alert("请先在系统设置中配置 Tavily API 密钥（顶部齿轮图标）。"); return; }
             if (!hunterKey) { alert("请先在系统设置中配置 Hunter.io API 密钥（顶部齿轮图标）。"); return; }
-            if (!name || !company) { alert("请输入目标姓名和所属公司。"); return; }
+            if (!name && !company && !region) { alert("请至少填写目标姓名、公司或地区中的一项。"); return; }
 
             const diagResult = document.getElementById('diag-result');
             document.getElementById('recon-progress').classList.remove('hidden');
+            document.getElementById('recon-filter-region').classList.add('hidden');
             updateReconProgress(0, '准备就绪', 'text-slate-500', 'text-slate-500', 'text-slate-500');
 
             diagResult.innerHTML = `
@@ -1224,101 +1337,66 @@ ${getDatePrefix()}
                 </div>`;
 
             try {
-                // Phase 1: Tavily 深度搜索
-                updateReconProgress(10, '正在全网扫描目标数字足迹...', 'text-cyan-400', 'text-slate-500', 'text-slate-500');
+                // Phase 1: 多源并行 Tavily 搜索
+                updateReconProgress(5, '正在多源扫描目标数字足迹...', 'text-cyan-400', 'text-slate-500', 'text-slate-500');
 
-                const searchQuery = `${name} ${company} LinkedIn profile company domain`;
-                if (!searchQuery || searchQuery.trim().length < 5) {
-                    throw new Error('搜索查询无效，请提供更详细的目标信息');
-                }
-                console.log('[侦察] Tavily 请求:', { query: searchQuery, search_depth: 'advanced' });
-                const searchResponse = await fetch('https://api.tavily.com/search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        api_key: tavilyKey,
-                        query: searchQuery,
-                        search_depth: 'advanced',
-                        include_answer: true,
-                        max_results: 10
-                    })
+                const queries = buildReconQueries(name, company, region);
+                if (queries.length === 0) throw new Error('无法生成搜索查询');
+
+                const searchPromises = queries.map(q => tavilySearch(tavilyKey, q));
+                const searchResults = await Promise.all(searchPromises);
+                const validResults = searchResults.filter(Boolean);
+
+                // 合并所有结果
+                const allItems = [];
+                const allAnswers = [];
+                validResults.forEach(d => {
+                    if (d.results) allItems.push(...d.results);
+                    if (d.answer) allAnswers.push(d.answer);
                 });
-                if (!searchResponse.ok) {
-                    const errBody = await searchResponse.text().catch(() => '无法读取错误体');
-                    console.error('[侦察] Tavily 错误响应:', searchResponse.status, errBody);
-                    throw new Error('Tavily API 异常 (' + searchResponse.status + '): ' + errBody.slice(0, 200));
-                }
-                const searchData = await searchResponse.json();
 
-                // 提取 LinkedIn 链接和域名
-                const linkedinUrls = [];
-                let detectedDomain = '';
-                if (searchData.results) {
-                    searchData.results.forEach(r => {
-                        if (r.url && r.url.includes('linkedin.com')) linkedinUrls.push(r.url);
-                        if (r.url) {
-                            try {
-                                const u = new URL(r.url);
-                                const h = u.hostname.replace('www.', '');
-                                if (!h.includes('linkedin') && !h.includes('google') && h.includes('.')) {
-                                    if (!detectedDomain) detectedDomain = h;
-                                }
-                            } catch(e) {}
-                        }
-                    });
-                }
+                // 提取邮箱、社交链接、域名
+                const discoveredEmails = [];
+                const allTexts = allItems.map(r => r.title + ' ' + (r.content || '')).concat(allAnswers);
+                allTexts.forEach(t => { discoveredEmails.push(...extractEmails(t)); });
 
-                // 如果没找到域名，再搜一次公司官网
-                if (!detectedDomain) {
-                    updateReconProgress(30, '未发现明确域名，正在扩大搜索范围...', 'text-emerald-400', 'text-slate-500', 'text-slate-500');
-                    const domainQuery = `${company} official website`;
-                    console.log('[侦察] Tavily 域名回退搜索:', { query: domainQuery });
-                    const domainResp = await fetch('https://api.tavily.com/search', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            api_key: tavilyKey,
-                            query: domainQuery,
-                            search_depth: 'basic',
-                            max_results: 5
-                        })
-                    });
-                    if (domainResp.ok) {
-                        const domainData = await domainResp.json();
-                        if (domainData.results) {
-                            for (const r of domainData.results) {
-                                try {
-                                    const u = new URL(r.url);
-                                    const h = u.hostname.replace('www.', '');
-                                    if (h.includes('.') && !h.includes('google') && !h.includes('linkedin')) {
-                                        detectedDomain = h; break;
-                                    }
-                                } catch(e) {}
-                            }
-                        }
-                    }
-                }
+                const socialUrls = extractSocialUrls(allItems);
+                const detectedDomain = extractDomain(allItems);
+
+                updateReconProgress(40, '扫描完成，发现 ' + (socialUrls.linkedin.length + socialUrls.facebook.length + socialUrls.instagram.length) + ' 个社交资料', 'text-emerald-400', 'text-slate-500', 'text-slate-500');
 
                 // Phase 2: Hunter.io 邮箱挖掘
-                updateReconProgress(50, detectedDomain ? '正在 Ping 目标域名...' : '未发现域名，跳过邮箱挖掘...', 'text-emerald-400', 'text-cyan-400', 'text-slate-500');
+                updateReconProgress(55, detectedDomain ? '正在 Ping 目标域名: ' + detectedDomain : '未发现明确域名，跳过邮箱挖掘...', 'text-emerald-400', 'text-cyan-400', 'text-slate-500');
 
                 let hunterData = null;
                 if (detectedDomain && hunterKey) {
-                    const hunterResp = await fetch(`https://api.hunter.io/v2/domain-search?domain=${detectedDomain}&api_key=${hunterKey}`);
-                    if (hunterResp.ok) {
-                        hunterData = await hunterResp.json();
-                    }
+                    const hunterResp = await fetch('https://api.hunter.io/v2/domain-search?domain=' + detectedDomain + '&api_key=' + hunterKey);
+                    if (hunterResp.ok) hunterData = await hunterResp.json();
                 }
 
-                // Phase 3: AI 战术简报
+                // 合并去重邮箱
+                const allEmails = [...discoveredEmails];
+                if (hunterData && hunterData.data && hunterData.data.emails) {
+                    hunterData.data.emails.forEach(e => {
+                        if (e.value && !allEmails.includes(e.value)) allEmails.push(e.value);
+                    });
+                }
+
                 updateReconProgress(75, '正在整合情报生成战术简报...', 'text-emerald-400', 'text-emerald-400', 'text-cyan-400');
 
-                await generateReconBrief(name, company, {
-                    linkedinUrls,
+                // 保存状态供筛选用
+                _lastReconState = { name, company, region, discoveredEmails: allEmails, detectedDomain, hunterData, socialUrls, allItems };
+
+                await generateReconBrief(name, company, region, {
+                    discoveredEmails: allEmails,
                     detectedDomain,
                     hunterData,
-                    searchData
+                    socialUrls,
+                    allItems
                 });
+
+                // 显示筛选区域
+                document.getElementById('recon-filter-region').classList.remove('hidden');
 
                 updateReconProgress(100, '侦察任务完成', 'text-emerald-400', 'text-emerald-400', 'text-emerald-400');
 
@@ -1328,55 +1406,85 @@ ${getDatePrefix()}
             }
         }
 
-        async function generateReconBrief(name, company, reconData) {
+        // ==========================================
+        // 筛选区域重新搜索
+        // ==========================================
+        function refineReconByRegion() {
+            const filterVal = document.getElementById('recon-filter-input').value.trim();
+            if (!filterVal) { alert('请输入筛选地区'); return; }
+            // 把筛选地区填入主地区输入框，然后重新执行
+            document.getElementById('recon-region').value = filterVal;
+            startRecon(filterVal);
+        }
+
+        // ==========================================
+        // AI 战术简报生成（增强版）
+        // ==========================================
+        async function generateReconBrief(name, company, region, reconData) {
             const authKey = getApiKey();
             const diagResult = document.getElementById('diag-result');
 
+            // Hunter 数据
             let hunterInfo = '未发现公开邮箱';
             let emailPattern = '未知';
-            let totalEmails = 0;
             if (reconData.hunterData && reconData.hunterData.data) {
                 const d = reconData.hunterData.data;
                 if (d.emails && d.emails.length > 0) {
-                    hunterInfo = d.emails.map(e => `${e.value} (${e.type})`).join('; ');
-                    totalEmails = d.emails.length;
+                    hunterInfo = d.emails.map(e => e.value + ' (' + e.type + ')').join('; ');
                 }
                 emailPattern = d.pattern || '未知';
             }
 
-            const linkedinInfo = reconData.linkedinUrls.length > 0
-                ? reconData.linkedinUrls.join('\n')
-                : '未发现公开 LinkedIn 资料';
-
+            // 原始侦察数据摘要
             const domainInfo = reconData.detectedDomain || '未发现';
+            const discoveredEmails = reconData.discoveredEmails || [];
+            const publicEmailCount = discoveredEmails.length;
 
+            // 专门显示公开联系人
+            let publicEmailsHtml = '';
+            if (publicEmailCount > 0) {
+                publicEmailsHtml = '<div class="bg-emerald-900/30 border border-emerald-500/40 rounded-lg p-4 mb-4">' +
+                    '<p class="text-emerald-400 font-bold text-xs tracking-widest mb-2">已验证的公开联系人</p>' +
+                    '<div class="space-y-1">' +
+                    discoveredEmails.map(e => '<div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span><span class="text-emerald-300 text-[11px] font-mono">' + e + '</span></div>').join('') +
+                    '</div></div>';
+            }
+
+            // 社交资料汇总
+            const social = reconData.socialUrls || {};
+            const socialCount = (social.linkedin || []).length + (social.facebook || []).length + (social.instagram || []).length;
+
+            // AI Prompt
             const promptText = `
 ${getDatePrefix()}
 你是一个顶级商业情报分析师，专门从事企业侦察与竞争对手分析。
 
-目标人物：${name}
-所属公司：${company}
+目标${name ? '：' + name : '：未知'}
+公司${company ? '：' + company : '：未知'}
+地区${region ? '：' + region : '：未指定'}
 
 【侦察数据】：
-LinkedIn 资料：
-${linkedinInfo}
-
+LinkedIn 资料：${(social.linkedin || []).join('; ') || '未发现'}
+Facebook 资料：${(social.facebook || []).join('; ') || '未发现'}
+Instagram 资料：${(social.instagram || []).join('; ') || '未发现'}
+公开邮箱：${discoveredEmails.join('; ') || '未发现'}
 公司域名：${domainInfo}
-邮箱模式：${emailPattern}
-发现邮箱数量：${totalEmails}
-邮箱详情：${hunterInfo}
+Hunter邮箱模式：${emailPattern}
+Hunter邮箱详情：${hunterInfo}
+
+注意：某些字段可能为空，请利用已有信息进行合理推测。如果姓名或公司缺失，请根据现有线索推断。
 
 请根据以上情报生成一份专业的【战术简报】，包含以下四个维度：
 
-1. target_profile: 目标人物的背景画像、职位、职业轨迹推测（不少于120字）
-2. company_intel: 目标公司的业务结构、市场定位、技术栈推测（不少于120字）
-3. contact_strategy: 基于邮箱模式和通信渠道的最佳首次接触策略（不少于120字）
-4. risk_ops: 侦察行动的风险评估与反情报建议（不少于80字）
+1. target_profile: 目标人物画像与背景推测（若姓名缺失则重点分析公司关键角色，不少于100字）
+2. company_intel: 公司情报与市场定位（不少于100字）
+3. contact_strategy: 基于发现联系渠道的最佳接触策略（不少于100字）
+4. risk_ops: 侦察风险与反情报建议（不少于80字）
 
 必须严格返回以下JSON格式（不要 markdown 标记）：
 {
     "is_valid": true,
-    "tags": ["决策链关键节点", "可邮件触达", "高价值目标"],
+    "tags": ["标签1", "标签2", "标签3"],
     "dimensions": {
         "target_profile": "...",
         "company_intel": "...",
@@ -1393,7 +1501,7 @@ ${linkedinInfo}
             try {
                 const response = await fetch(AI_API_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authKey}` },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authKey },
                     body: JSON.stringify({ model: AI_MODEL, messages: [{"role": "user", "content": promptText}], temperature: 0.3 })
                 });
                 if (!response.ok) throw new Error("AI API 异常");
@@ -1408,31 +1516,34 @@ ${linkedinInfo}
                     return;
                 }
 
-                // 渲染战术简报
+                // 渲染
                 const tagsHtml = result.tags ? result.tags.map(t => '<span class="inline-block bg-cyan-900/30 border border-cyan-500/40 px-3 py-1 rounded-full text-[11px] text-cyan-300 mr-2 mb-1 font-medium tracking-wide">' + t + '</span>').join('') : '';
                 let confColor = 'text-amber-400';
                 if (result.confidence === '高') confColor = 'text-emerald-400';
                 else if (result.confidence === '低') confColor = 'text-red-400';
 
-                // 附上原始侦察数据摘要
+                // 原始数据摘要卡片
                 const rawDataHtml = `
                     <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 mb-4">
                         <p class="text-[10px] text-slate-500 font-bold mb-2 tracking-wider">原始侦察数据</p>
                         <div class="grid grid-cols-2 gap-2 text-[10px]">
                             <div><span class="text-slate-500">域名：</span><span class="text-cyan-300">${domainInfo}</span></div>
                             <div><span class="text-slate-500">邮箱模式：</span><span class="text-cyan-300">${emailPattern}</span></div>
-                            <div><span class="text-slate-500">发现邮箱：</span><span class="text-cyan-300">${totalEmails} 个</span></div>
-                            <div><span class="text-slate-500">LinkedIn：</span><span class="text-cyan-300">${reconData.linkedinUrls.length} 条</span></div>
+                            <div><span class="text-slate-500">公开邮箱：</span><span class="text-emerald-300">${publicEmailCount} 个</span></div>
+                            <div><span class="text-slate-500">社交资料：</span><span class="text-cyan-300">${socialCount} 条</span></div>
                         </div>
                     </div>`;
+
+                const headerDisplayName = name || (company || '未知目标');
+                const headerDesc = (company ? company + ' | ' : '') + '战术侦察简报' + (region ? ' | ' + region : '');
 
                 diagResult.innerHTML = `
                     <div class="relative z-10 animate-fadeIn h-full flex flex-col">
                         <div class="mb-4 border-b border-slate-700 pb-4 shrink-0">
                             <div class="flex justify-between items-start">
                                 <div class="flex-1 min-w-0">
-                                    <h3 class="font-black text-2xl text-white tracking-wide">${name}</h3>
-                                    <p class="text-[10px] text-slate-400 mt-1">${company} | 战术侦察简报</p>
+                                    <h3 class="font-black text-2xl text-white tracking-wide">${headerDisplayName}</h3>
+                                    <p class="text-[10px] text-slate-400 mt-1">${headerDesc}</p>
                                 </div>
                                 <button onclick="expandDiagnosis()" class="shrink-0 border border-slate-500/40 text-slate-400 hover:bg-slate-700/30 px-2 py-1 rounded text-[10px] transition ml-2">放大</button>
                             </div>
@@ -1442,6 +1553,7 @@ ${linkedinInfo}
                             </div>
                         </div>
                         <div class="flex-1 overflow-y-auto pr-2 space-y-4 pb-4">
+                            ${publicEmailsHtml}
                             ${rawDataHtml}
                             <div class="bg-slate-900/50 p-4 rounded-lg border border-cyan-500/30 border-l-4 border-l-cyan-500 hover:bg-slate-800/80 transition">
                                 <p class="text-cyan-400 font-bold mb-2 text-xs tracking-widest">目标人物画像</p>
