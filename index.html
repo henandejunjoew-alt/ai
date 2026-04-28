@@ -1227,18 +1227,27 @@ ${getDatePrefix()}
                 // Phase 1: Tavily 深度搜索
                 updateReconProgress(10, '正在全网扫描目标数字足迹...', 'text-cyan-400', 'text-slate-500', 'text-slate-500');
 
+                const searchQuery = `${name} ${company} LinkedIn profile company domain`;
+                if (!searchQuery || searchQuery.trim().length < 5) {
+                    throw new Error('搜索查询无效，请提供更详细的目标信息');
+                }
+                console.log('[侦察] Tavily 请求:', { query: searchQuery, search_depth: 'advanced' });
                 const searchResponse = await fetch('https://api.tavily.com/search', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         api_key: tavilyKey,
-                        query: `${name} ${company} LinkedIn profile company domain`,
-                        search_depth: 'deep',
+                        query: searchQuery,
+                        search_depth: 'advanced',
                         include_answer: true,
                         max_results: 10
                     })
                 });
-                if (!searchResponse.ok) throw new Error('Tavily API 异常 (' + searchResponse.status + ')');
+                if (!searchResponse.ok) {
+                    const errBody = await searchResponse.text().catch(() => '无法读取错误体');
+                    console.error('[侦察] Tavily 错误响应:', searchResponse.status, errBody);
+                    throw new Error('Tavily API 异常 (' + searchResponse.status + '): ' + errBody.slice(0, 200));
+                }
                 const searchData = await searchResponse.json();
 
                 // 提取 LinkedIn 链接和域名
@@ -1262,12 +1271,14 @@ ${getDatePrefix()}
                 // 如果没找到域名，再搜一次公司官网
                 if (!detectedDomain) {
                     updateReconProgress(30, '未发现明确域名，正在扩大搜索范围...', 'text-emerald-400', 'text-slate-500', 'text-slate-500');
+                    const domainQuery = `${company} official website`;
+                    console.log('[侦察] Tavily 域名回退搜索:', { query: domainQuery });
                     const domainResp = await fetch('https://api.tavily.com/search', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             api_key: tavilyKey,
-                            query: `${company} official website domain site linkedin`,
+                            query: domainQuery,
                             search_depth: 'basic',
                             max_results: 5
                         })
