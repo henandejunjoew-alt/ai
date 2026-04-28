@@ -308,7 +308,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-28 15:25:57" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-28 15:41:13" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -1263,7 +1263,9 @@ ${getDatePrefix()}
                 queries.push(`"${name || company}" crane export import manager whatsapp`);
                 queries.push(`"${name || company}" heavy equipment sales director linkedin`);
             }
-            return queries;
+            // 所有查询强制附加行业过滤词，剔除SEO垃圾
+            const industryFilter = '(起重机 OR 起重 OR 工业 OR 钢铁 OR heavy machinery OR construction)';
+            return queries.map(q => q + ' ' + industryFilter);
         }
 
         // ==========================================
@@ -1433,6 +1435,26 @@ ${getDatePrefix()}
             }
         }
 
+        const B2B_DIRECTORY_DOMAINS = [
+            'alibaba', 'made-in-china', 'tradeindia', 'exportersindia', 'indiamart',
+            'b2b', 'go4worldbusiness', 'importer', 'tradekey', 'ec21', 'ecplaza',
+            'globalsources', 'manufacturer', 'supplier', 'wholesaler',
+            'industryweek', 'engineeringclick', 'constructionweek', 'plantautomation',
+            'processonline', 'ferret', 'directindustry', 'archiexpo',
+            'bizcommunity', 'topranked', 'exportbureau', 'tradeholding'
+        ];
+
+        function isB2BDirectory(url) {
+            if (!url) return false;
+            try {
+                const hostname = new URL(url).hostname.replace('www.', '');
+                for (const d of B2B_DIRECTORY_DOMAINS) {
+                    if (hostname.includes(d)) return true;
+                }
+                return false;
+            } catch(e) { return false; }
+        }
+
         // ==========================================
         // 来源权威性评级（终选排序用）
         // ==========================================
@@ -1440,24 +1462,29 @@ ${getDatePrefix()}
             if (!url) return 0;
             const u = url.toLowerCase();
             const label = (sourceLabel || '').toLowerCase();
-            // LinkedIn: 最高权威
-            if (u.includes('linkedin.com') || label.includes('linkedin')) return 100;
-            // Facebook
-            if (u.includes('facebook.com') || label.includes('facebook')) return 80;
-            // Instagram
+            // 90: LinkedIn / Facebook
+            if (u.includes('linkedin.com') || label.includes('linkedin')) return 90;
+            if (u.includes('facebook.com') || label.includes('facebook')) return 90;
+            // 90: .co.ke 官方域名
+            try {
+                const hostname = new URL(url).hostname.replace('www.', '');
+                if (hostname.endsWith('.co.ke')) return 90;
+            } catch(e) {}
+            // 10: B2B 企业目录（默认隐藏）
+            if (isB2BDirectory(url)) return 10;
+            // 70: Instagram
             if (u.includes('instagram.com') || label.includes('instagram')) return 70;
-            // 公司官网（非社交平台）
+            // 60: 公司官网（非社交平台）
             if (!/(linkedin|facebook|instagram|twitter|youtube|whatsapp|tavily)/.test(u)) {
                 try {
                     const hostname = new URL(url).hostname.replace('www.', '');
                     if (hostname.includes('.') && !hostname.includes('google') && !hostname.includes('blogspot')) return 60;
                 } catch(e) {}
             }
-            // WhatsApp 直达链接
+            // 50: WhatsApp
             if (u.includes('wa.me') || u.includes('whatsapp.com') || label.includes('whatsapp')) return 50;
-            // Tavily 搜索结果聚合
+            // 5: Tavily 聚合
             if (u.includes('tavily.com')) return 5;
-            // 其他
             return 10;
         }
 
@@ -1513,14 +1540,17 @@ ${getDatePrefix()}
             }
             const result = [];
             for (const [key, group] of groups) {
-                // 按 score 降序排列
+                // 按 score → 权威性 → 日期（最新优先）降序排列
                 group.sort((a, b) => {
                     const scoreA = a.score || 0;
                     const scoreB = b.score || 0;
                     if (scoreA !== scoreB) return scoreB - scoreA;
                     const authA = getSourceAuthority(a.source, a.sourceLabel);
                     const authB = getSourceAuthority(b.source, b.sourceLabel);
-                    return authB - authA;
+                    if (authA !== authB) return authB - authA;
+                    const dateA = a.publishedDate ? new Date(a.publishedDate).getTime() : 0;
+                    const dateB = b.publishedDate ? new Date(b.publishedDate).getTime() : 0;
+                    return dateB - dateA;
                 });
                 // 保留最佳来源
                 const best = group[0];
@@ -1578,7 +1608,7 @@ ${getDatePrefix()}
         // ==========================================
         // 从搜索结果中提取带来源的电话号码
         // ==========================================
-        function extractPhonesWithSources(items, regionCfg) {
+        function extractPhonesWithSources(items, regionCfg, name, company) {
             if (!items || items.length === 0) return [];
             const seen = new Set();
             const results = [];
@@ -1591,6 +1621,16 @@ ${getDatePrefix()}
 
                 // 证据链强制：丢弃无来源URL的号码
                 if (!sourceUrl) continue;
+
+                // 交叉验证：姓名和公司必须同时出现在同一页面
+                if (name && company) {
+                    const pageText = (item.title || '') + ' ' + (item.content || '');
+                    if (!pageText.toLowerCase().includes(name.toLowerCase()) ||
+                        !pageText.toLowerCase().includes(company.toLowerCase())) {
+                        console.log('[交叉验证] 跳过 ' + sourceUrl + ' → 姓名/公司不同时出现');
+                        continue;
+                    }
+                }
 
                 const regex = /(?:\+\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}(?:[-.\s]?\d{2,4})?/g;
                 const matches = text.match(regex);
@@ -1666,13 +1706,19 @@ ${getDatePrefix()}
         // ==========================================
         // 从搜索结果中提取带来源的邮箱
         // ==========================================
-        function extractEmailsWithSources(items) {
+        function extractEmailsWithSources(items, name, company) {
             if (!items || items.length === 0) return [];
             const seen = new Set();
             const results = [];
             const regex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
             for (const item of items) {
                 if (!item) continue;
+                // 交叉验证：姓名和公司必须同时出现在同一页面
+                if (name && company) {
+                    const pageText = (item.title || '') + ' ' + (item.content || '');
+                    if (!pageText.toLowerCase().includes(name.toLowerCase()) ||
+                        !pageText.toLowerCase().includes(company.toLowerCase())) continue;
+                }
                 const text = (item.title || '') + ' ' + (item.content || '') + ' ' + (item.raw_content || '');
                 const sourceUrl = item.url || '';
                 const sourceLabel = item.title || sourceUrl;
@@ -1957,9 +2003,9 @@ ${getDatePrefix()}
                     rawPhones.push(...extractPhones(t));
                 });
 
-                // Deep Recon: 带来源的提取
-                const phonesWithSources = extractPhonesWithSources(allItems, regionCfg);
-                const emailsWithSources = extractEmailsWithSources(allItems);
+                // Deep Recon: 带来源的提取（含交叉验证）
+                const phonesWithSources = extractPhonesWithSources(allItems, regionCfg, name, company);
+                const emailsWithSources = extractEmailsWithSources(allItems, name, company);
 
                 // 为带来源的电话号码添加地理标记和国家码
                 phonesWithSources.forEach(p => {
@@ -1990,6 +2036,13 @@ ${getDatePrefix()}
                 });
                 const mergedEmails = Array.from(emailMap.values());
 
+                // 邮箱评分 + top 10 限制
+                mergedEmails.forEach(e => {
+                    e.score = scoreCandidate(e, regionCfg, company);
+                });
+                mergedEmails.sort((a, b) => (b.score || 0) - (a.score || 0));
+                const topEmails = mergedEmails.slice(0, 10);
+
                 // scoreCandidate 评分：+50 LinkedIn/官方, +30 区域匹配, -20 通用前缀, -50 黑名单
                 phonesWithSources.forEach(p => {
                     p.score = scoreCandidate(p, regionCfg, company);
@@ -2009,6 +2062,13 @@ ${getDatePrefix()}
 
                 // Top 10 硬性限制
                 const finalPhones = dedupedPhones.slice(0, 10);
+
+                // 分离 B2B 低质结果（权威性 ≤10 的默认折叠）
+                const highQualityPhones = finalPhones.filter(p => (p.sourceAuthority || 0) > 10);
+                const lowQualityPhones = finalPhones.filter(p => (p.sourceAuthority || 0) <= 10);
+                if (lowQualityPhones.length > 0) {
+                    console.log('[B2B] 隐藏低质目录结果: ' + lowQualityPhones.length + ' 条');
+                }
 
                 // 为号码添加地理标记
                 finalPhones.forEach(p => {
@@ -2037,8 +2097,8 @@ ${getDatePrefix()}
                     if (hunterResp.ok) hunterData = await hunterResp.json();
                 }
 
-                // 合并去重邮箱（纯列表用于 AI prompt）
-                const allEmails = [...new Set(mergedEmails.map(e => e.email))];
+                // 合并去重邮箱（纯列表用于 AI prompt），只用 Top 10
+                const allEmails = [...new Set(topEmails.map(e => e.email))];
                 if (hunterData && hunterData.data && hunterData.data.emails) {
                     hunterData.data.emails.forEach(e => {
                         if (e.value && !allEmails.includes(e.value)) allEmails.push(e.value);
@@ -2055,8 +2115,9 @@ ${getDatePrefix()}
 
                 await generateReconBrief(name, company, region, industry, {
                     discoveredEmails: allEmails,
-                    mergedEmails: mergedEmails,
-                    filteredPhones: finalPhones,
+                    mergedEmails: topEmails,
+                    filteredPhones: highQualityPhones,
+                    lowQualityPhones: lowQualityPhones,
                     rawPhonesCount: preDedupCount,
                     detectedDomain,
                     hunterData,
@@ -2118,6 +2179,7 @@ ${getDatePrefix()}
             const discoveredEmails = reconData.discoveredEmails || [];
             const publicEmailCount = discoveredEmails.length;
             const filteredPhones = reconData.filteredPhones || [];
+            const lowQualityPhones = reconData.lowQualityPhones || [];
             const whatsAppLinks = reconData.whatsAppLinks || [];
             const social = reconData.socialUrls || {};
             const mergedEmails = reconData.mergedEmails || [];
@@ -2229,6 +2291,25 @@ ${getDatePrefix()}
                     '</tr></thead>' +
                     '<tbody>' + rows + '</tbody>' +
                     '</table></div>';
+
+                // B2B 低质结果（默认折叠）
+                if (lowQualityPhones.length > 0) {
+                    let b2bRows = '';
+                    lowQualityPhones.forEach(p => {
+                        const waUrl = phoneToWhatsAppUrl(p);
+                        const contactDisplay = '<span class="text-cyan-300 text-[10px] font-mono">' + p.raw + '</span>' +
+                            (waUrl ? ' <a href="' + waUrl + '" target="_blank" class="text-emerald-400 text-[8px]">[WA]</a>' : '');
+                        b2bRows += '<tr class="border-b border-slate-700/30">' +
+                            '<td class="py-1.5 px-2 text-[9px] text-slate-500">' + contactDisplay + '</td>' +
+                            '<td class="py-1.5 px-2 text-[9px] max-w-[180px] truncate text-slate-600">' + (p.source || '—') + '</td>' +
+                            '</tr>';
+                    });
+                    eliteTableHtml += '<details class="mb-4">' +
+                        '<summary class="text-[10px] text-slate-500 cursor-pointer hover:text-slate-400 transition tracking-wider px-1 py-1.5">📁 B2B 目录结果 (' + lowQualityPhones.length + ' 条，点击展开)</summary>' +
+                        '<div class="bg-slate-900/40 border border-slate-700/50 rounded-lg p-2 mt-1">' +
+                        '<table class="w-full text-left"><thead><tr class="text-[8px] text-slate-600 tracking-wider uppercase"><th class="py-1 px-2">联系</th><th class="py-1 px-2">来源</th></tr></thead><tbody>' + b2bRows + '</tbody></table>' +
+                        '</div></details>';
+                }
             }
 
             // 社交媒体账号专用插槽
