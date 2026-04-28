@@ -223,6 +223,10 @@
                                 <label class="input-label">地区（可选）</label>
                                 <input type="text" id="recon-region" class="w-full" placeholder="例如：美国、东南亚、欧洲">
                             </div>
+                            <div>
+                                <label class="input-label">行业背景</label>
+                                <input type="text" id="recon-industry" class="w-full" value="起重机/重型机械" placeholder="默认为起重机/重型机械">
+                            </div>
 
                             <div id="recon-progress" class="hidden space-y-2">
                                 <div class="flex justify-between text-[10px] text-slate-500">
@@ -1213,29 +1217,32 @@ ${getDatePrefix()}
         }
 
         // ==========================================
-        // 多源侦察查询生成
+        // 多源侦察查询生成（含行业过滤）
         // ==========================================
-        function buildReconQueries(name, company, region) {
+        function buildReconQueries(name, company, region, industry) {
+            const ind = industry || '起重机 重型机械 工业设备 工程机械';
             const queries = [];
             if (name && company) {
-                queries.push(`${name} ${company} LinkedIn profile`);
-                queries.push(`${name} ${company} email contact address`);
-                queries.push(`${name} ${company} Facebook page`);
-                if (region) queries.push(`${name} ${company} ${region} contact information`);
+                queries.push(`${name} ${company} ${ind} LinkedIn profile`);
+                queries.push(`${name} ${company} ${ind} email contact`);
+                queries.push(`${name} ${company} ${ind} Facebook page`);
+                queries.push(`${name} ${company} phone whatsapp contact wa.me`);
+                if (region) queries.push(`${name} ${company} ${region} ${ind} contact`);
             } else if (name) {
-                queries.push(`${name} LinkedIn profile professional`);
-                queries.push(`${name} email contact information`);
-                queries.push(`${name} Facebook Instagram`);
-                if (region) queries.push(`${name} ${region} contact`);
+                queries.push(`${name} ${ind} LinkedIn profile`);
+                queries.push(`${name} ${ind} email contact information`);
+                queries.push(`${name} ${ind} Facebook Instagram`);
+                queries.push(`${name} phone whatsapp contact wa.me`);
+                if (region) queries.push(`${name} ${region} ${ind} contact`);
             } else if (company) {
-                queries.push(`${company} official website domain email`);
-                queries.push(`${company} LinkedIn company page employees`);
-                queries.push(`${company} Facebook contact`);
-                queries.push(`${company} email format`);
-                if (region) queries.push(`${company} ${region} office location contact`);
+                queries.push(`${company} ${ind} official website email`);
+                queries.push(`${company} ${ind} LinkedIn company page employees`);
+                queries.push(`${company} ${ind} Facebook contact phone`);
+                queries.push(`${company} email format phone number`);
+                if (region) queries.push(`${company} ${region} ${ind} office contact`);
             }
-            if (region && !name && !company) {
-                queries.push(`${region} business directory contact`);
+            if (!name && !company && region) {
+                queries.push(`${region} ${ind} business directory contact`);
             }
             return queries;
         }
@@ -1248,6 +1255,38 @@ ${getDatePrefix()}
             const regex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
             const matches = text.match(regex);
             return matches ? [...new Set(matches)] : [];
+        }
+
+        // ==========================================
+        // 从文本中提取电话号码
+        // ==========================================
+        function extractPhones(text) {
+            if (!text) return [];
+            const regex = /(?:\+\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}(?:[-.\s]?\d{2,4})?/g;
+            const matches = text.match(regex);
+            if (!matches) return [];
+            return [...new Set(matches.filter(m => {
+                const digits = m.replace(/\D/g, '');
+                return digits.length >= 7 && digits.length <= 15;
+            }))];
+        }
+
+        // ==========================================
+        // 从搜索结果中提取 WhatsApp 链接
+        // ==========================================
+        function extractWhatsApp(results) {
+            const links = [];
+            for (const r of results) {
+                if (!r || !r.url) continue;
+                if (r.url.includes('wa.me') || r.url.includes('whatsapp.com')) links.push(r.url);
+            }
+            for (const r of results) {
+                if (r.content && (r.content.includes('wa.me') || r.content.includes('whatsapp.com'))) {
+                    const found = r.content.match(/https?:\/\/[^\s]*(?:wa\.me|whatsapp\.com)[^\s]*/g);
+                    if (found) links.push(...found);
+                }
+            }
+            return [...new Set(links)];
         }
 
         // ==========================================
@@ -1275,7 +1314,7 @@ ${getDatePrefix()}
                 try {
                     const u = new URL(r.url);
                     const h = u.hostname.replace('www.', '');
-                    if (h.includes('.') && !h.includes('linkedin') && !h.includes('facebook') && !h.includes('instagram') && !h.includes('google') && !h.includes('twitter') && !h.includes('youtube')) {
+                    if (h.includes('.') && !h.includes('linkedin') && !h.includes('facebook') && !h.includes('instagram') && !h.includes('google') && !h.includes('twitter') && !h.includes('youtube') && !h.includes('whatsapp')) {
                         return h;
                     }
                 } catch(e) {}
@@ -1308,14 +1347,15 @@ ${getDatePrefix()}
         }
 
         // ==========================================
-        // 战略侦察引擎（多源并行）
+        // 战略侦察引擎（多源并行 + 行业过滤）
         // ==========================================
-        let _lastReconState = null; // 用于筛选区域重新搜索
+        let _lastReconState = null;
 
-        async function startRecon(filterRegion) {
+        async function startRecon(filterRegion, industryOverride) {
             const name = document.getElementById('recon-name').value.trim();
             const company = document.getElementById('recon-company').value.trim();
             const region = filterRegion || document.getElementById('recon-region').value.trim();
+            const industry = industryOverride || document.getElementById('recon-industry').value.trim() || '起重机/重型机械';
             const tavilyKey = localStorage.getItem('tavily_api_key');
             const hunterKey = localStorage.getItem('hunter_api_key');
             const authKey = getApiKey();
@@ -1333,14 +1373,14 @@ ${getDatePrefix()}
             diagResult.innerHTML = `
                 <div class="flex flex-col items-center justify-center h-full text-cyan-400 text-xs animate-pulse">
                     <div class="w-12 h-12 border-4 border-slate-800 border-t-cyan-500 rounded-full animate-spin mb-6 shadow-[0_0_15px_rgba(6,182,212,0.5)]"></div>
-                    <p class="mb-2 tracking-widest text-sm">启动侦察序列...</p>
+                    <p class="mb-2 tracking-widest text-sm">启动侦察序列 [行业: ${industry}]...</p>
                 </div>`;
 
             try {
-                // Phase 1: 多源并行 Tavily 搜索
-                updateReconProgress(5, '正在多源扫描目标数字足迹...', 'text-cyan-400', 'text-slate-500', 'text-slate-500');
+                // Phase 1: 多源并行 Tavily 搜索（行业过滤）
+                updateReconProgress(5, '正在多源扫描目标数字足迹 [行业: ' + industry + ']...', 'text-cyan-400', 'text-slate-500', 'text-slate-500');
 
-                const queries = buildReconQueries(name, company, region);
+                const queries = buildReconQueries(name, company, region, industry);
                 if (queries.length === 0) throw new Error('无法生成搜索查询');
 
                 const searchPromises = queries.map(q => tavilySearch(tavilyKey, q));
@@ -1355,12 +1395,17 @@ ${getDatePrefix()}
                     if (d.answer) allAnswers.push(d.answer);
                 });
 
-                // 提取邮箱、社交链接、域名
+                // 提取邮箱、电话、社交链接、域名
                 const discoveredEmails = [];
+                const discoveredPhones = [];
                 const allTexts = allItems.map(r => r.title + ' ' + (r.content || '')).concat(allAnswers);
-                allTexts.forEach(t => { discoveredEmails.push(...extractEmails(t)); });
+                allTexts.forEach(t => {
+                    discoveredEmails.push(...extractEmails(t));
+                    discoveredPhones.push(...extractPhones(t));
+                });
 
                 const socialUrls = extractSocialUrls(allItems);
+                const whatsAppLinks = extractWhatsApp(allItems);
                 const detectedDomain = extractDomain(allItems);
 
                 updateReconProgress(40, '扫描完成，发现 ' + (socialUrls.linkedin.length + socialUrls.facebook.length + socialUrls.instagram.length) + ' 个社交资料', 'text-emerald-400', 'text-slate-500', 'text-slate-500');
@@ -1384,20 +1429,20 @@ ${getDatePrefix()}
 
                 updateReconProgress(75, '正在整合情报生成战术简报...', 'text-emerald-400', 'text-emerald-400', 'text-cyan-400');
 
-                // 保存状态供筛选用
-                _lastReconState = { name, company, region, discoveredEmails: allEmails, detectedDomain, hunterData, socialUrls, allItems };
+                // 保存状态
+                _lastReconState = { name, company, region, industry, discoveredEmails: allEmails, discoveredPhones, detectedDomain, hunterData, socialUrls, whatsAppLinks, allItems };
 
-                await generateReconBrief(name, company, region, {
+                await generateReconBrief(name, company, region, industry, {
                     discoveredEmails: allEmails,
+                    discoveredPhones: discoveredPhones,
                     detectedDomain,
                     hunterData,
                     socialUrls,
+                    whatsAppLinks,
                     allItems
                 });
 
-                // 显示筛选区域
                 document.getElementById('recon-filter-region').classList.remove('hidden');
-
                 updateReconProgress(100, '侦察任务完成', 'text-emerald-400', 'text-emerald-400', 'text-emerald-400');
 
             } catch (error) {
@@ -1412,15 +1457,25 @@ ${getDatePrefix()}
         function refineReconByRegion() {
             const filterVal = document.getElementById('recon-filter-input').value.trim();
             if (!filterVal) { alert('请输入筛选地区'); return; }
-            // 把筛选地区填入主地区输入框，然后重新执行
             document.getElementById('recon-region').value = filterVal;
-            startRecon(filterVal);
+            startRecon(filterVal, null);
         }
 
         // ==========================================
-        // AI 战术简报生成（增强版）
+        // "不是此人" — 切换到工业领域搜索
         // ==========================================
-        async function generateReconBrief(name, company, region, reconData) {
+        function reRunReconIndustrial() {
+            const name = document.getElementById('recon-name').value.trim();
+            const company = document.getElementById('recon-company').value.trim();
+            if (!name && !company) { alert('请至少填写姓名或公司以重新搜索'); return; }
+            document.getElementById('recon-industry').value = '起重机/重型机械/工程机械/工业设备';
+            startRecon(null, '起重机 重型机械 工程机械 工业设备 建筑机械 -writer -author -blogger -journalist -artist');
+        }
+
+        // ==========================================
+        // AI 战术简报生成（行业感知 + 联系渠道）
+        // ==========================================
+        async function generateReconBrief(name, company, region, industry, reconData) {
             const authKey = getApiKey();
             const diagResult = document.getElementById('diag-result');
 
@@ -1435,12 +1490,14 @@ ${getDatePrefix()}
                 emailPattern = d.pattern || '未知';
             }
 
-            // 原始侦察数据摘要
             const domainInfo = reconData.detectedDomain || '未发现';
             const discoveredEmails = reconData.discoveredEmails || [];
             const publicEmailCount = discoveredEmails.length;
+            const discoveredPhones = reconData.discoveredPhones || [];
+            const whatsAppLinks = reconData.whatsAppLinks || [];
+            const social = reconData.socialUrls || {};
 
-            // 专门显示公开联系人
+            // 公开邮箱卡片
             let publicEmailsHtml = '';
             if (publicEmailCount > 0) {
                 publicEmailsHtml = '<div class="bg-emerald-900/30 border border-emerald-500/40 rounded-lg p-4 mb-4">' +
@@ -1450,40 +1507,89 @@ ${getDatePrefix()}
                     '</div></div>';
             }
 
-            // 社交资料汇总
-            const social = reconData.socialUrls || {};
-            const socialCount = (social.linkedin || []).length + (social.facebook || []).length + (social.instagram || []).length;
+            // WhatsApp / 电话专用插槽
+            let contactChannelsHtml = '';
+            const hasPhone = discoveredPhones.length > 0;
+            const hasWA = whatsAppLinks.length > 0;
+            if (hasPhone || hasWA) {
+                let items = '';
+                if (hasWA) {
+                    items += '<div class="mb-2"><p class="text-[10px] text-cyan-400 font-bold tracking-wider mb-1">[WhatsApp/手机]</p>' +
+                        whatsAppLinks.map(l => '<div class="flex items-center gap-2 mb-1"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0"></span><a href="' + l + '" target="_blank" class="text-cyan-300 text-[11px] underline underline-offset-2 hover:text-cyan-200">' + l + '</a></div>').join('') +
+                        '</div>';
+                }
+                if (hasPhone) {
+                    items += '<div><p class="text-[10px] text-cyan-400 font-bold tracking-wider mb-1">[电话号码]</p>' +
+                        discoveredPhones.map(p => '<div class="flex items-center gap-2 mb-1"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0"></span><span class="text-cyan-300 text-[11px] font-mono">' + p + '</span></div>').join('') +
+                        '</div>';
+                }
+                contactChannelsHtml = '<div class="bg-cyan-900/20 border border-cyan-500/30 rounded-lg p-4 mb-4">' +
+                    '<p class="text-cyan-400 font-bold text-xs tracking-widest mb-2">联系渠道</p>' + items + '</div>';
+            }
 
-            // AI Prompt
+            // 社交媒体账号专用插槽
+            let socialHtml = '';
+            const allSocialLinks = [...(social.linkedin || []), ...(social.facebook || []), ...(social.instagram || [])];
+            if (allSocialLinks.length > 0) {
+                const cat = (arr, label) => arr.length ? arr.map(l => '<div class="flex items-center gap-2 mb-0.5"><span class="text-[10px] text-slate-500 w-14 shrink-0">' + label + '</span><a href="' + l + '" target="_blank" class="text-cyan-300 text-[10px] underline underline-offset-2 truncate hover:text-cyan-200">' + l + '</a></div>').join('') : '';
+                socialHtml = '<div class="bg-indigo-900/20 border border-indigo-500/30 rounded-lg p-4 mb-4">' +
+                    '<p class="text-indigo-400 font-bold text-xs tracking-widest mb-2">社交媒体账号</p>' +
+                    cat(social.linkedin || [], 'LinkedIn') +
+                    cat(social.facebook || [], 'Facebook') +
+                    cat(social.instagram || [], 'Instagram') +
+                    '</div>';
+            }
+
+            // 行业验证信息
+            const industryVerifyHtml = '<div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 mb-4">' +
+                '<p class="text-[10px] text-slate-500 font-bold mb-2 tracking-wider">原始侦察数据</p>' +
+                '<div class="grid grid-cols-2 gap-2 text-[10px]">' +
+                '<div><span class="text-slate-500">行业：</span><span class="text-amber-300">' + (industry || '起重机/重型机械') + '</span></div>' +
+                '<div><span class="text-slate-500">域名：</span><span class="text-cyan-300">' + domainInfo + '</span></div>' +
+                '<div><span class="text-slate-500">邮箱模式：</span><span class="text-cyan-300">' + emailPattern + '</span></div>' +
+                '<div><span class="text-slate-500">公开邮箱：</span><span class="text-emerald-300">' + publicEmailCount + ' 个</span></div>' +
+                '<div><span class="text-slate-500">电话：</span><span class="text-cyan-300">' + discoveredPhones.length + ' 个</span></div>' +
+                '<div><span class="text-slate-500">社交资料：</span><span class="text-cyan-300">' + allSocialLinks.length + ' 条</span></div>' +
+                '</div></div>';
+
+            // AI Prompt（含行业校验）
             const promptText = `
 ${getDatePrefix()}
-你是一个顶级商业情报分析师，专门从事企业侦察与竞争对手分析。
+你是一个顶级商业情报分析师，专门从事${industry || '起重机/重型机械'}行业的竞争对手分析与客户背景调查。
 
 目标${name ? '：' + name : '：未知'}
 公司${company ? '：' + company : '：未知'}
 地区${region ? '：' + region : '：未指定'}
+行业：${industry || '起重机/重型机械'}
 
 【侦察数据】：
 LinkedIn 资料：${(social.linkedin || []).join('; ') || '未发现'}
 Facebook 资料：${(social.facebook || []).join('; ') || '未发现'}
 Instagram 资料：${(social.instagram || []).join('; ') || '未发现'}
 公开邮箱：${discoveredEmails.join('; ') || '未发现'}
+电话号码：${discoveredPhones.join('; ') || '未发现'}
+WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
 公司域名：${domainInfo}
 Hunter邮箱模式：${emailPattern}
 Hunter邮箱详情：${hunterInfo}
 
-注意：某些字段可能为空，请利用已有信息进行合理推测。如果姓名或公司缺失，请根据现有线索推断。
+【行业校验】：
+- 行业背景设定为：${industry || '起重机/重型机械'}
+- 如果侦察结果明显属于其他行业（如作家、设计师、艺术家等），请将 is_valid 设为 false，并在 conclusion 中说明原因。
+- 分析地区与公司的交叉关系：目标所在地是否与该行业集群相符，是否存在地区偏移。
+- 请利用已有信息进行合理推测，如姓名或公司缺失则根据现有线索推断。
 
 请根据以上情报生成一份专业的【战术简报】，包含以下四个维度：
 
 1. target_profile: 目标人物画像与背景推测（若姓名缺失则重点分析公司关键角色，不少于100字）
-2. company_intel: 公司情报与市场定位（不少于100字）
-3. contact_strategy: 基于发现联系渠道的最佳接触策略（不少于100字）
-4. risk_ops: 侦察风险与反情报建议（不少于80字）
+2. company_intel: 公司情报与市场定位，包含行业验证结论（不少于100字）
+3. contact_strategy: 基于发现的联系渠道（邮箱/电话/社交媒体）的最佳接触策略（不少于100字）
+4. risk_ops: 侦察风险与反情报建议，含行业偏移风险提示（不少于80字）
 
 必须严格返回以下JSON格式（不要 markdown 标记）：
 {
     "is_valid": true,
+    "industry_match": true,
     "tags": ["标签1", "标签2", "标签3"],
     "dimensions": {
         "target_profile": "...",
@@ -1496,7 +1602,7 @@ Hunter邮箱详情：${hunterInfo}
     "conclusion": "一句话总结"
 }
 
-重要：禁止输出评分或百分比数值。只做专业情报分析。语气保持冷酷、专业。严禁出现"作为一个AI..."等废话。`;
+重要：禁止输出评分或百分比数值。只做专业情报分析。语气保持冷酷、专业。`;
 
             try {
                 const response = await fetch(AI_API_URL, {
@@ -1512,7 +1618,7 @@ Hunter邮箱详情：${hunterInfo}
                 const result = JSON.parse(jsonMatch[0]);
 
                 if (result.is_valid === false) {
-                    diagResult.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-amber-500"><p class="font-bold tracking-widest">数据无效</p></div>';
+                    diagResult.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-amber-500"><p class="font-bold tracking-widest">行业不匹配</p><p class="text-xs text-slate-400 mt-2 text-center max-w-sm">' + (result.conclusion || '目标可能不属于' + industry + '行业，已终止分析') + '</p><button onclick="reRunReconIndustrial()" class="mt-4 bg-amber-600/40 hover:bg-amber-600/60 text-amber-300 border border-amber-500/30 px-4 py-2 rounded text-[10px] tracking-wider transition">切换到工业领域搜索</button></div>';
                     return;
                 }
 
@@ -1521,18 +1627,6 @@ Hunter邮箱详情：${hunterInfo}
                 let confColor = 'text-amber-400';
                 if (result.confidence === '高') confColor = 'text-emerald-400';
                 else if (result.confidence === '低') confColor = 'text-red-400';
-
-                // 原始数据摘要卡片
-                const rawDataHtml = `
-                    <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 mb-4">
-                        <p class="text-[10px] text-slate-500 font-bold mb-2 tracking-wider">原始侦察数据</p>
-                        <div class="grid grid-cols-2 gap-2 text-[10px]">
-                            <div><span class="text-slate-500">域名：</span><span class="text-cyan-300">${domainInfo}</span></div>
-                            <div><span class="text-slate-500">邮箱模式：</span><span class="text-cyan-300">${emailPattern}</span></div>
-                            <div><span class="text-slate-500">公开邮箱：</span><span class="text-emerald-300">${publicEmailCount} 个</span></div>
-                            <div><span class="text-slate-500">社交资料：</span><span class="text-cyan-300">${socialCount} 条</span></div>
-                        </div>
-                    </div>`;
 
                 const headerDisplayName = name || (company || '未知目标');
                 const headerDesc = (company ? company + ' | ' : '') + '战术侦察简报' + (region ? ' | ' + region : '');
@@ -1544,23 +1638,27 @@ Hunter邮箱详情：${hunterInfo}
                                 <div class="flex-1 min-w-0">
                                     <h3 class="font-black text-2xl text-white tracking-wide">${headerDisplayName}</h3>
                                     <p class="text-[10px] text-slate-400 mt-1">${headerDesc}</p>
+                                    <p class="text-[9px] text-amber-500 mt-0.5">行业: ${industry || '起重机/重型机械'}</p>
                                 </div>
                                 <button onclick="expandDiagnosis()" class="shrink-0 border border-slate-500/40 text-slate-400 hover:bg-slate-700/30 px-2 py-1 rounded text-[10px] transition ml-2">放大</button>
                             </div>
                             <div class="flex flex-wrap gap-1 items-center mt-2">
                                 ${tagsHtml}
+                                ${result.industry_match === false ? '<span class="text-[10px] text-amber-400 font-bold border border-amber-500/30 px-2 py-0.5 rounded">行业偏移警告</span>' : ''}
                                 <span class="ml-auto text-[10px] font-bold ${confColor}">可信度：${result.confidence || '未知'}</span>
                             </div>
                         </div>
                         <div class="flex-1 overflow-y-auto pr-2 space-y-4 pb-4">
                             ${publicEmailsHtml}
-                            ${rawDataHtml}
+                            ${contactChannelsHtml}
+                            ${socialHtml}
+                            ${industryVerifyHtml}
                             <div class="bg-slate-900/50 p-4 rounded-lg border border-cyan-500/30 border-l-4 border-l-cyan-500 hover:bg-slate-800/80 transition">
                                 <p class="text-cyan-400 font-bold mb-2 text-xs tracking-widest">目标人物画像</p>
                                 <p class="text-slate-300 text-[11px] leading-relaxed">${result.dimensions.target_profile}</p>
                             </div>
                             <div class="bg-slate-900/50 p-4 rounded-lg border border-blue-500/30 border-l-4 border-l-blue-500 hover:bg-slate-800/80 transition">
-                                <p class="text-blue-400 font-bold mb-2 text-xs tracking-widest">公司情报</p>
+                                <p class="text-blue-400 font-bold mb-2 text-xs tracking-widest">公司情报与行业验证</p>
                                 <p class="text-slate-300 text-[11px] leading-relaxed">${result.dimensions.company_intel}</p>
                             </div>
                             <div class="bg-slate-900/50 p-4 rounded-lg border border-emerald-500/30 border-l-4 border-l-emerald-500 hover:bg-slate-800/80 transition">
@@ -1572,9 +1670,12 @@ Hunter邮箱详情：${hunterInfo}
                                 <p class="text-slate-300 text-[11px] leading-relaxed">${result.dimensions.risk_ops}</p>
                             </div>
                         </div>
-                        <div class="shrink-0 pt-4 mt-2 border-t border-slate-700 space-y-1">
+                        <div class="shrink-0 pt-4 mt-2 border-t border-slate-700 space-y-2">
                             <p class="text-cyan-400 font-bold text-xs tracking-wide">下一步：${result.next_step || ''}</p>
                             <p class="text-slate-300 text-[11px] italic">${result.conclusion || ''}</p>
+                            <button onclick="reRunReconIndustrial()" class="w-full bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-500/30 py-2 rounded text-[10px] tracking-wider transition mt-2">
+                                [!] 不是此人 — 切换到工业领域搜索
+                            </button>
                         </div>
                     </div>`;
 
