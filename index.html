@@ -1434,6 +1434,78 @@ ${getDatePrefix()}
         }
 
         // ==========================================
+        // 来源权威性评级（终选排序用）
+        // ==========================================
+        function getSourceAuthority(url, sourceLabel) {
+            if (!url) return 0;
+            const u = url.toLowerCase();
+            const label = (sourceLabel || '').toLowerCase();
+            // LinkedIn: 最高权威
+            if (u.includes('linkedin.com') || label.includes('linkedin')) return 100;
+            // Facebook
+            if (u.includes('facebook.com') || label.includes('facebook')) return 80;
+            // Instagram
+            if (u.includes('instagram.com') || label.includes('instagram')) return 70;
+            // 公司官网（非社交平台）
+            if (!/(linkedin|facebook|instagram|twitter|youtube|whatsapp|tavily)/.test(u)) {
+                try {
+                    const hostname = new URL(url).hostname.replace('www.', '');
+                    if (hostname.includes('.') && !hostname.includes('google') && !hostname.includes('blogspot')) return 60;
+                } catch(e) {}
+            }
+            // WhatsApp 直达链接
+            if (u.includes('wa.me') || u.includes('whatsapp.com') || label.includes('whatsapp')) return 50;
+            // Tavily 搜索结果聚合
+            if (u.includes('tavily.com')) return 5;
+            // 其他
+            return 10;
+        }
+
+        // ==========================================
+        // 终选去重：合并相同号码，保留最高权威/最新来源
+        // ==========================================
+        function deduplicatePhones(phones) {
+            if (!phones || phones.length === 0) return [];
+            const groups = new Map();
+            for (const p of phones) {
+                const key = (p.digits || '').slice(-10);
+                if (!key) continue;
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(p);
+            }
+            const result = [];
+            for (const [key, group] of groups) {
+                // 按权威性降序排列
+                group.sort((a, b) => {
+                    const authA = getSourceAuthority(a.source, a.sourceLabel);
+                    const authB = getSourceAuthority(b.source, b.sourceLabel);
+                    if (authA !== authB) return authB - authA;
+                    // 相同权威，按发布日期最新优先
+                    const dateA = a.publishedDate ? new Date(a.publishedDate).getTime() : 0;
+                    const dateB = b.publishedDate ? new Date(b.publishedDate).getTime() : 0;
+                    return dateB - dateA;
+                });
+                // 保留最佳来源，合并信息
+                const best = group[0];
+                if (group.length > 1) {
+                    // 附加上下文片段合并（取权威最高的）
+                    best.dedupCount = group.length;
+                    // 尽量保留更详细的sourceLabel
+                    for (const other of group) {
+                        if (other.sourceLabel && other.sourceLabel.length > (best.sourceLabel || '').length) {
+                            best.sourceLabel = other.sourceLabel;
+                        }
+                        if (other.contextSnippet && !best.contextSnippet) {
+                            best.contextSnippet = other.contextSnippet;
+                        }
+                    }
+                }
+                result.push(best);
+            }
+            return result;
+        }
+
+        // ==========================================
         // 新鲜度标签（基于发布日期）
         // ==========================================
         function getFreshnessLabel(publishedDate) {
@@ -1489,13 +1561,31 @@ ${getDatePrefix()}
                         continue;
                     }
 
-                    const key = digits.slice(-10);
-                    if (seen.has(key)) continue;
-                    seen.add(key);
+                    // 请求中提取：号码周围20字符内必须有联系电话关键字
+                    let keywordMatch = '';
+                    const PROXIMITY_KEYWORDS = /(WhatsApp|whatsapp|手机|电话|联系人|contact|call|phone|mobile|tel|whatsapp|热线|号码|拨打|致电|传真)/g;
+                    const idx = text.indexOf(raw);
+                    if (idx >= 0) {
+                        const before = text.slice(Math.max(0, idx - 20), idx);
+                        const after = text.slice(idx + raw.length, idx + raw.length + 20);
+                        const around = before + ' ' + after;
+                        const kwFound = around.match(PROXIMITY_KEYWORDS);
+                        if (kwFound) {
+                            keywordMatch = kwFound[0];
+                        } else {
+                            // 二次尝试：在整条记录的标题中查找关键字
+                            if (item.title && PROXIMITY_KEYWORDS.test(item.title)) {
+                                PROXIMITY_KEYWORDS.lastIndex = 0;
+                                keywordMatch = '(标题)' + (item.title.match(PROXIMITY_KEYWORDS) || [''])[0];
+                            } else {
+                                console.log('[终选] 邻近词拦截 ' + digits + ' → 20字符内无联系电话关键字');
+                                continue;
+                            }
+                        }
+                    }
 
                     // 提取上下文片段：号码周围50个字符
                     let contextSnippet = '';
-                    const idx = text.indexOf(raw);
                     if (idx >= 0) {
                         const start = Math.max(0, idx - 50);
                         const end = Math.min(text.length, idx + raw.length + 50);
@@ -1505,6 +1595,11 @@ ${getDatePrefix()}
                         contextSnippet = snippet;
                     }
 
+                    // 去重（在邻近词校验之后）
+                    const key = digits.slice(-10);
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+
                     results.push({
                         raw,
                         digits: digits.startsWith('+') ? digits : '+' + digits,
@@ -1513,7 +1608,8 @@ ${getDatePrefix()}
                         publishedDate,
                         countryCode: '',
                         geoTag: '',
-                        contextSnippet
+                        contextSnippet,
+                        keywordMatch
                     });
                 }
             }
@@ -1859,14 +1955,21 @@ ${getDatePrefix()}
                         return { ...p, confidence: sc.confidence, score: sc.score, countryCode: p.countryCode || sc.countryCode, localDigits: sc.localDigits };
                     })
                     .sort((a, b) => (b.score || 0) - (a.score || 0))
-                    .slice(0, 5);
+                    .slice(0, 10); // 留更多供终选去重
+
+                // 终选去重：合并相同号码，保留权威来源
+                const dedupedPhones = deduplicatePhones(enrichedPhones);
+                dedupedPhones.forEach(p => {
+                    p.sourceAuthority = getSourceAuthority(p.source, p.sourceLabel);
+                });
+                dedupedPhones.sort((a, b) => (b.sourceAuthority || 0) - (a.sourceAuthority || 0));
 
                 // 为带来源的电话号码添加地理标记
                 enrichedPhones.forEach(p => {
                     if (!p.geoTag) p.geoTag = geoTagPhone(p.digits, p.countryCode);
                 });
 
-                console.log('[硬门] 有效号码:', enrichedPhones.length, '/', uniqueRawPhones.length, '→ 最终:', enrichedPhones.map(p => p.raw + '[' + p.confidence + ']'));
+                console.log('[终选] 去重前:', enrichedPhones.length, '→ 去重后:', dedupedPhones.length, '/ 有效:', dedupedPhones.map(p => p.raw + '[' + p.confidence + '|权威' + p.sourceAuthority + ']'));
 
                 const socialUrls = extractSocialUrls(allItems);
                 const whatsAppLinks = extractWhatsApp(allItems);
@@ -1893,14 +1996,18 @@ ${getDatePrefix()}
 
                 updateReconProgress(75, '正在整合情报生成战术简报...', 'text-emerald-400', 'text-emerald-400', 'text-cyan-400');
 
+                // 终选结果
+                const finalPhones = dedupedPhones.slice(0, 5);
+                const preDedupCount = enrichedPhones.length;
+
                 // 保存状态
-                _lastReconState = { name, company, region, industry, discoveredEmails: allEmails, discoveredPhones: enrichedPhones, detectedDomain, hunterData, socialUrls, whatsAppLinks, allItems };
+                _lastReconState = { name, company, region, industry, discoveredEmails: allEmails, discoveredPhones: finalPhones, detectedDomain, hunterData, socialUrls, whatsAppLinks, allItems };
 
                 await generateReconBrief(name, company, region, industry, {
                     discoveredEmails: allEmails,
                     mergedEmails: mergedEmails,
-                    filteredPhones: enrichedPhones,
-                    rawPhonesCount: uniqueRawPhones.length,
+                    filteredPhones: finalPhones,
+                    rawPhonesCount: preDedupCount,
                     detectedDomain,
                     hunterData,
                     socialUrls,
@@ -1961,19 +2068,18 @@ ${getDatePrefix()}
             const discoveredEmails = reconData.discoveredEmails || [];
             const publicEmailCount = discoveredEmails.length;
             const filteredPhones = reconData.filteredPhones || [];
-            const rawPhonesCount = reconData.rawPhonesCount || 0;
             const whatsAppLinks = reconData.whatsAppLinks || [];
             const social = reconData.socialUrls || {};
             const mergedEmails = reconData.mergedEmails || [];
 
             // ========================================
-            // 深度侦察: 联系信息表（来源 + 地理 + 新鲜度）
+            // 精英情报表（终选结果）
             // ========================================
             const hasPhone = filteredPhones.length > 0;
             const hasWA = whatsAppLinks.length > 0;
             const hasEmail = publicEmailCount > 0;
 
-            let contactTableHtml = '';
+            let eliteTableHtml = '';
             if (hasPhone || hasEmail || hasWA) {
                 let rows = '';
 
@@ -1982,38 +2088,40 @@ ${getDatePrefix()}
                     mergedEmails.forEach(entry => {
                         const email = entry.email;
                         const src = entry.sources && entry.sources.length > 0 ? entry.sources[0] : null;
-                        const srcLabel = src && src.label ? src.label : 'Tavily 搜索结果';
                         const srcUrl = src && src.url ? src.url : '';
+                        const srcLabel = src && src.label ? src.label.slice(0, 30) : '';
                         const srcDisplay = srcUrl
-                            ? '<a href="' + srcUrl + '" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline underline-offset-2">' + srcLabel.slice(0, 30) + '</a>'
-                            : '<span class="text-slate-500">' + srcLabel + '</span>';
-                        rows += '<tr class="border-b border-slate-700/50 hover:bg-slate-800/40">' +
-                            '<td class="py-2 px-2"><span class="text-emerald-300 text-[11px] font-mono break-all">' + email + '</span></td>' +
-                            '<td class="py-2 px-2 text-[10px] text-slate-500 whitespace-nowrap">—</td>' +
-                            '<td class="py-2 px-2 text-[10px] max-w-[140px] truncate">' + srcDisplay + '</td>' +
-                            '<td class="py-2 px-2 text-[10px]">—</td>' +
+                            ? '<a href="' + srcUrl + '" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 text-[10px]">' + srcLabel + '</a>'
+                            : '<span class="text-slate-500 text-[10px]">' + srcLabel + '</span>';
+                        rows += '<tr class="border-b border-slate-700/50 hover:bg-slate-800/40 transition">' +
+                            '<td class="py-2.5 px-2 text-center"><span class="text-[9px] px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 font-bold tracking-wider">已验证</span></td>' +
+                            '<td class="py-2.5 px-2"><span class="text-emerald-300 text-[11px] font-mono break-all">' + email + '</span></td>' +
+                            '<td class="py-2.5 px-2 text-[10px] text-slate-500 whitespace-nowrap">—</td>' +
+                            '<td class="py-2.5 px-2 text-[10px] max-w-[140px] truncate">' + srcDisplay + '</td>' +
                             '</tr>';
                     });
                 }
 
-                // 电话号码行（含地理标记、新鲜度、文本片段）
+                // 终选号码行（置信度 | 联系 | 地区 | 已验证来源链接）
                 if (hasPhone) {
                     filteredPhones.forEach(p => {
-                        const confColor = p.confidence === '高' ? 'text-emerald-400' : p.confidence === '中' ? 'text-amber-400' : 'text-slate-400';
+                        const confColor = p.confidence === '高' ? 'text-emerald-400 bg-emerald-900/40' : p.confidence === '中' ? 'text-amber-400 bg-amber-900/40' : 'text-slate-400 bg-slate-800';
                         const waUrl = phoneToWhatsAppUrl(p);
                         const geoTag = p.geoTag || '';
                         const freshness = p.publishedDate ? getFreshnessLabel(p.publishedDate) : '';
                         const srcLabel = p.sourceLabel ? p.sourceLabel.slice(0, 25) : '';
                         const snippet = p.contextSnippet || '';
+                        const snippetAttr = snippet.replace(/"/g, '&quot;');
                         const snippetDisplay = snippet
-                            ? '<div class="text-[8px] text-slate-500 mt-0.5 truncate max-w-[180px]" title="' + snippet.replace(/"/g, '&quot;') + '">' + snippet.slice(0, 50) + '…</div>'
+                            ? '<div class="text-[7px] text-slate-600 mt-0.5 truncate max-w-[200px]" title="' + snippetAttr + '">' + snippet.slice(0, 55) + '…</div>'
                             : '';
-                        const srcDisplay = p.source
-                            ? '<a href="' + p.source + '" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 text-[9px]">' + srcLabel + '</a>' + snippetDisplay
-                            : '<span class="text-slate-500 text-[9px]">Tavily</span>' + snippetDisplay;
-                        const waDisplay = waUrl
-                            ? '<a href="' + waUrl + '" target="_blank" class="text-emerald-400 hover:text-emerald-300 text-[10px] font-bold underline underline-offset-2">[WA]</a>'
-                            : '—';
+                        // 来源行：链接 + 上下文片段
+                        const srcDisplay = '<div class="leading-tight">' +
+                            (p.source
+                                ? '<a href="' + p.source + '" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 text-[9px]">' + srcLabel + '</a>'
+                                : '<span class="text-slate-500 text-[9px]">Tavily</span>') +
+                            snippetDisplay +
+                            '</div>';
 
                         let regionDisplay = '—';
                         if (geoTag) {
@@ -2022,38 +2130,44 @@ ${getDatePrefix()}
                             regionDisplay = '<span class="text-slate-400 text-[10px]">+' + p.countryCode + '</span>';
                         }
 
-                        rows += '<tr class="border-b border-slate-700/50 hover:bg-slate-800/40">' +
-                            '<td class="py-2 px-2"><span class="text-cyan-300 text-[11px] font-mono whitespace-nowrap">' + p.raw + '</span> ' +
-                            '<span class="text-[9px] px-1.5 py-0.5 rounded ' + (p.confidence === '高' ? 'bg-emerald-900/40' : p.confidence === '中' ? 'bg-amber-900/40' : 'bg-slate-800') + ' ' + confColor + '">' + p.confidence + '</span>' +
-                            freshness + '</td>' +
-                            '<td class="py-2 px-2 text-[10px]">' + regionDisplay + '</td>' +
-                            '<td class="py-2 px-2 text-[10px] max-w-[200px]">' + srcDisplay + '</td>' +
-                            '<td class="py-2 px-2 text-[10px] text-center">' + waDisplay + '</td>' +
+                        // 联系列：号码 + 新鲜度 + WhatsApp
+                        let contactDisplay = '<span class="text-cyan-300 text-[11px] font-mono whitespace-nowrap">' + p.raw + '</span>' + freshness;
+                        if (waUrl) {
+                            contactDisplay += ' <a href="' + waUrl + '" target="_blank" class="text-emerald-400 hover:text-emerald-300 text-[9px] font-bold underline underline-offset-2">[WA]</a>';
+                        }
+
+                        rows += '<tr class="border-b border-slate-700/50 hover:bg-slate-800/40 transition">' +
+                            '<td class="py-2.5 px-2 text-center"><span class="text-[9px] px-2 py-0.5 rounded font-bold tracking-wider ' + confColor + '">' + p.confidence + '</span></td>' +
+                            '<td class="py-2.5 px-2">' + contactDisplay + '</td>' +
+                            '<td class="py-2.5 px-2 text-[10px]">' + regionDisplay + '</td>' +
+                            '<td class="py-2.5 px-2 text-[10px] max-w-[200px]">' + srcDisplay + '</td>' +
                             '</tr>';
                     });
                 }
 
-                // WhatsApp 链接行
+                // WhatsApp 专属行
                 if (hasWA) {
                     whatsAppLinks.forEach(l => {
-                        rows += '<tr class="border-b border-slate-700/50 hover:bg-slate-800/40">' +
-                            '<td class="py-2 px-2"><a href="' + l + '" target="_blank" class="text-cyan-300 text-[11px] underline underline-offset-2 hover:text-cyan-200 truncate block max-w-[200px]">' + l + '</a></td>' +
-                            '<td class="py-2 px-2 text-[10px] text-slate-500">—</td>' +
-                            '<td class="py-2 px-2 text-[10px] text-slate-500">WhatsApp 链接</td>' +
-                            '<td class="py-2 px-2 text-[10px] text-center"><span class="text-emerald-400 text-[9px]">✓</span></td>' +
+                        rows += '<tr class="border-b border-slate-700/50 hover:bg-slate-800/40 transition">' +
+                            '<td class="py-2.5 px-2 text-center"><span class="text-[9px] px-2 py-0.5 rounded bg-cyan-900/40 text-cyan-400 font-bold">WA</span></td>' +
+                            '<td class="py-2.5 px-2"><a href="' + l + '" target="_blank" class="text-cyan-300 text-[11px] underline underline-offset-2 hover:text-cyan-200 truncate block max-w-[200px]">' + l + '</a></td>' +
+                            '<td class="py-2.5 px-2 text-[10px] text-slate-500">—</td>' +
+                            '<td class="py-2.5 px-2 text-[10px] text-slate-500">WhatsApp 直达</td>' +
                             '</tr>';
                     });
                 }
 
-                const regionLabel = regionCfg ? '（区域过滤: ' + regionCfg.name + '）' : '';
-                contactTableHtml = '<div class="bg-slate-900/60 border border-cyan-500/30 rounded-lg p-3 mb-4 overflow-x-auto">' +
-                    '<p class="text-cyan-400 font-bold text-xs tracking-widest mb-2">联系渠道 ' + (rawPhonesCount > 5 ? '<span class="text-amber-400 font-normal text-[10px]">通过校验' + rawPhonesCount + '个 → 终选</span>' : '') + regionLabel + '</p>' +
+                eliteTableHtml = '<div class="bg-slate-900/70 border border-cyan-500/30 rounded-lg p-3 mb-4 overflow-x-auto shadow-[0_0_20px_rgba(6,182,212,0.1)]">' +
+                    '<div class="flex items-center justify-between mb-2">' +
+                    '<p class="text-cyan-400 font-bold text-xs tracking-widest">⚡ 精英情报表</p>' +
+                    '' +
+                    '</div>' +
                     '<table class="w-full text-left border-collapse">' +
-                    '<thead><tr class="border-b border-cyan-500/30 text-[10px] text-slate-400 tracking-wider">' +
-                    '<th class="py-1.5 px-2 font-semibold">号码 / 邮箱</th>' +
-                    '<th class="py-1.5 px-2 font-semibold">地区/城市</th>' +
-                    '<th class="py-1.5 px-2 font-semibold">来源</th>' +
-                    '<th class="py-1.5 px-2 font-semibold text-center">WA</th>' +
+                    '<thead><tr class="border-b border-cyan-500/30 text-[9px] text-slate-500 tracking-wider uppercase">' +
+                    '<th class="py-1.5 px-2 font-semibold w-[60px]">置信度</th>' +
+                    '<th class="py-1.5 px-2 font-semibold">联系</th>' +
+                    '<th class="py-1.5 px-2 font-semibold w-[70px]">地区</th>' +
+                    '<th class="py-1.5 px-2 font-semibold">已验证来源链接</th>' +
                     '</tr></thead>' +
                     '<tbody>' + rows + '</tbody>' +
                     '</table></div>';
@@ -2081,14 +2195,14 @@ ${getDatePrefix()}
                 '<div><span class="text-slate-500">' + regionFilterLabel + '</span><span class="text-cyan-300">' + domainInfo + '</span></div>' +
                 '<div><span class="text-slate-500">邮箱模式：</span><span class="text-cyan-300">' + emailPattern + '</span></div>' +
                 '<div><span class="text-slate-500">公开邮箱：</span><span class="text-emerald-300">' + publicEmailCount + ' 个</span></div>' +
-                '<div><span class="text-slate-500">电话：</span><span class="text-cyan-300">' + filteredPhones.length + ' 个' + (rawPhonesCount > 0 ? '（通过校验' + rawPhonesCount + '个）' : '') + '</span></div>' +
+                '<div><span class="text-slate-500">电话：</span><span class="text-cyan-300">' + filteredPhones.length + ' 个</span></div>' +
                 '<div><span class="text-slate-500">社交资料：</span><span class="text-cyan-300">' + allSocialLinks.length + ' 条</span></div>' +
                 '</div></div>';
 
             // AI Prompt（含行业校验）
             const promptText = `
 ${getDatePrefix()}
-你是一个顶级商业情报分析师，专门从事${industry || '起重机/重型机械'}行业的竞争对手分析与客户背景调查。
+你现在是一名高级情报分析师（Senior Intelligence Analyst），专门从事${industry || '起重机/重型机械'}行业的竞争对手分析与客户背景调查。
 
 目标${name ? '：' + name : '：未知'}
 公司${company ? '：' + company : '：未知'}
@@ -2100,7 +2214,7 @@ LinkedIn 资料：${(social.linkedin || []).join('; ') || '未发现'}
 Facebook 资料：${(social.facebook || []).join('; ') || '未发现'}
 Instagram 资料：${(social.instagram || []).join('; ') || '未发现'}
 公开邮箱：${discoveredEmails.join('; ') || '未发现'}
-候选号码（区域过滤，最多5个）：${filteredPhones.map(p => p.raw + ' [' + p.confidence + ']').join('; ') || '未发现'}
+候选号码（区域过滤，最多5个）：${filteredPhones.map(p => p.raw + ' [' + p.confidence + ']' + (p.contextSnippet ? ' 上下文: ' + p.contextSnippet.slice(0, 80) : '')).join('; ') || '未发现'}
 WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
 公司域名：${domainInfo}
 Hunter邮箱模式：${emailPattern}
@@ -2119,6 +2233,13 @@ Hunter邮箱详情：${hunterInfo}
 		- 优先考虑过去 24-48 小时内的帖子标题、简介或正文中找到的电话号码和邮箱。
 		- 如果发现多个来源，优先使用发布时间最近的来源。
 		- 在分析中标注信息来源的新鲜度，标注为"[最新]"（≤2小时）或"[今日]"（≤24小时）。
+
+	【终审判定指令（重要）】：
+	你面对的是经过多层硬门过滤后的候选数据。请执行以下操作：
+	1. 评估每个候选号码/邮箱的置信度，基于来源权威性、上下文相关性、信息新鲜度
+	2. 从所有候选中选出TOP 3最高置信度的联系候选
+	3. 对每个TOP 3候选，提供明确的"置信理由"（confidence_reason），例如："在LinkedIn个人主页上发现"、"在公司官网联系页面找到"
+
 
 请根据以上情报生成一份专业的【战术简报】，包含以下四个维度：
 
@@ -2139,6 +2260,14 @@ Hunter邮箱详情：${hunterInfo}
         "risk_ops": "..."
     },
     "confidence": "高/中/低",
+    "top_candidates": [
+        {
+            "contact": "+86 138xxxx1234 或 email@example.com",
+            "confidence": "高/中/低",
+            "confidence_reason": "在目标的LinkedIn个人主页上发现",
+            "source": "https://linkedin.com/in/..."
+        }
+    ],
     "next_step": "下一步行动建议（50字以内）",
     "conclusion": "一句话总结"
 }
@@ -2190,7 +2319,25 @@ Hunter邮箱详情：${hunterInfo}
                             </div>
                         </div>
                         <div class="flex-1 overflow-y-auto pr-2 space-y-4 pb-4">
-                            ${contactTableHtml}
+                            ${eliteTableHtml}
+                            ${result.top_candidates && result.top_candidates.length > 0 ? (() => {
+                                const cards = result.top_candidates.map(c => {
+                                    const cConf = c.confidence === '高' ? 'text-emerald-400' : c.confidence === '中' ? 'text-amber-400' : 'text-slate-400';
+                                    const cBg = c.confidence === '高' ? 'border-emerald-500/40' : c.confidence === '中' ? 'border-amber-500/40' : 'border-slate-500/40';
+                                    return '<div class="bg-slate-900/60 border ' + cBg + ' rounded-lg p-3 border-l-4 ' + (c.confidence === '高' ? 'border-l-emerald-500' : c.confidence === '中' ? 'border-l-amber-500' : 'border-l-slate-500') + '">' +
+                                        '<div class="flex items-center gap-2 mb-1">' +
+                                        '<span class="text-[10px] px-2 py-0.5 rounded font-bold ' + cConf + '">▲ AI终选</span>' +
+                                        '<span class="text-cyan-300 text-[11px] font-mono">' + (c.contact || '') + '</span>' +
+                                        '</div>' +
+                                        (c.confidence_reason ? '<p class="text-[9px] text-slate-400 ml-1">🎯 ' + c.confidence_reason + '</p>' : '') +
+                                        (c.source ? '<a href="' + c.source + '" target="_blank" class="text-[9px] text-cyan-500 hover:text-cyan-400 underline underline-offset-2 ml-1">' + c.source.slice(0, 50) + '…</a>' : '') +
+                                        '</div>';
+                                }).join('');
+                                return '<div class="bg-indigo-900/20 border border-indigo-500/30 rounded-lg p-3">' +
+                                    '<p class="text-indigo-400 font-bold text-xs tracking-widest mb-2">🧠 AI终审判定 · TOP 候选</p>' +
+                                    cards +
+                                    '</div>';
+                            })() : ''}
                             ${socialHtml}
                             ${industryVerifyHtml}
                             <div class="bg-slate-900/50 p-4 rounded-lg border border-cyan-500/30 border-l-4 border-l-cyan-500 hover:bg-slate-800/80 transition">
