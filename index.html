@@ -1356,6 +1356,84 @@ ${getDatePrefix()}
         }
 
         // ==========================================
+        // 硬门过滤: 电话号码严格校验 (Hard Gate)
+        // ==========================================
+        function validatePhone(digits, regionCfg) {
+            if (!digits || digits.length < 8) return { valid: false, reason: '位数不足8位' };
+            // 必须包含 + 号（国际格式）
+            if (!digits.startsWith('+')) return { valid: false, reason: '缺少国际前缀+' };
+            // 过滤纯重复数字或简单序列
+            if (/^(\d)\1{6,}$/.test(digits.replace('+', ''))) return { valid: false, reason: '重复数字序列' };
+            if (/^(?:12345|23456|34567|45678|56789|98765|87654|76543|65432|54321)/.test(digits.replace('+', ''))) return { valid: false, reason: '连续序列号' };
+            // 过滤 88888888 类无意义号码
+            if (/^(\d{3,})\1{2,}$/.test(digits.replace('+', ''))) return { valid: false, reason: '重复模式' };
+
+            if (!regionCfg) {
+                // 无区域设定时，只要带+且>8位就算通过
+                return { valid: true, reason: '通过' };
+            }
+
+            // 区域硬校验：国家码必须匹配
+            const digitsNoPlus = digits.replace('+', '');
+            let matchedCode = '';
+            for (const cc of regionCfg.codes) {
+                if (digitsNoPlus.startsWith(cc)) {
+                    matchedCode = cc;
+                    break;
+                }
+            }
+            if (!matchedCode) {
+                return { valid: false, reason: '国家码不匹配目标区域' };
+            }
+
+            // 移动号码格式校验
+            const localDigits = digitsNoPlus.slice(matchedCode.length);
+            if (regionCfg.mobileRe) {
+                if (!regionCfg.mobileRe.test(localDigits)) {
+                    return { valid: false, reason: '移动号段格式不匹配 (' + regionCfg.name + ')' };
+                }
+            } else {
+                // 无特定格式要求，但本地部分至少3位
+                if (localDigits.length < 3) {
+                    return { valid: false, reason: '本地号码过短' };
+                }
+            }
+
+            return { valid: true, reason: '通过' };
+        }
+
+        // ==========================================
+        // 域名黑名单（消减垃圾/黄页/虚假数据源）
+        // ==========================================
+        const PHONE_SOURCE_BLACKLIST = [
+            'yellowpages', 'zoominfo', 'rocketreach', 'growjo', 'crunchbase',
+            'datanyze', 'apollo.io', 'lusha', 'leadiq', 'cognism',
+            'discoverorg', 'adapt.io', 'insideview', 'salesintel',
+            'clearbit', 'prospect.io', 'skrapp.io', 'signalhire',
+            'anyleads', 'contactout', 'findthatlead', 'saasy',
+            'manta.com', 'hotfrog', 'cylex', 'kompass',
+            'tupalo', 'brownbook', 'opendi', 'infobel',
+            'companyinfo', 'corporationwiki', 'jigsaw', 'data.com',
+            'spokeo', 'whitepages', '411.com', 'truepeoplesearch',
+            'beenverified', 'intelius', 'peekyou', 'pipl',
+            'zabasearch', 'mycandidate', 'privateeye', 'instantcheckmate',
+            'tavily.com' // 排除Tavily聚合页本身
+        ];
+
+        function isBlacklistedDomain(url) {
+            if (!url) return false;
+            try {
+                const hostname = new URL(url).hostname.replace('www.', '');
+                for (const domain of PHONE_SOURCE_BLACKLIST) {
+                    if (hostname.includes(domain)) return true;
+                }
+                return false;
+            } catch(e) {
+                return false;
+            }
+        }
+
+        // ==========================================
         // 新鲜度标签（基于发布日期）
         // ==========================================
         function getFreshnessLabel(publishedDate) {
@@ -1381,7 +1459,7 @@ ${getDatePrefix()}
         // ==========================================
         // 从搜索结果中提取带来源的电话号码
         // ==========================================
-        function extractPhonesWithSources(items) {
+        function extractPhonesWithSources(items, regionCfg) {
             if (!items || items.length === 0) return [];
             const seen = new Set();
             const results = [];
@@ -1391,6 +1469,10 @@ ${getDatePrefix()}
                 const sourceUrl = item.url || '';
                 const sourceLabel = item.title || sourceUrl;
                 const publishedDate = item.published_date || '';
+
+                // 证据链强制：丢弃无来源URL的号码
+                if (!sourceUrl) continue;
+
                 const regex = /(?:\+\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}(?:[-.\s]?\d{2,4})?/g;
                 const matches = text.match(regex);
                 if (!matches) continue;
@@ -1399,17 +1481,39 @@ ${getDatePrefix()}
                     if (digits.length < 7 || digits.length > 15) continue;
                     if (/^(\d)\1{6,}$/.test(digits)) continue;
                     if (/^12345/.test(digits)) continue;
+
+                    // 硬门过滤：严格格式校验
+                    const gate = validatePhone(digits.startsWith('+') ? digits : '+' + digits, regionCfg);
+                    if (!gate.valid) {
+                        console.log('[硬门] 拦截 ' + digits + ' → ' + gate.reason);
+                        continue;
+                    }
+
                     const key = digits.slice(-10);
                     if (seen.has(key)) continue;
                     seen.add(key);
+
+                    // 提取上下文片段：号码周围50个字符
+                    let contextSnippet = '';
+                    const idx = text.indexOf(raw);
+                    if (idx >= 0) {
+                        const start = Math.max(0, idx - 50);
+                        const end = Math.min(text.length, idx + raw.length + 50);
+                        let snippet = text.slice(start, end).replace(/\s+/g, ' ').trim();
+                        if (start > 0) snippet = '…' + snippet;
+                        if (end < text.length) snippet = snippet + '…';
+                        contextSnippet = snippet;
+                    }
+
                     results.push({
                         raw,
-                        digits,
+                        digits: digits.startsWith('+') ? digits : '+' + digits,
                         source: sourceUrl,
                         sourceLabel: sourceLabel.slice(0, 60),
                         publishedDate,
                         countryCode: '',
-                        geoTag: ''
+                        geoTag: '',
+                        contextSnippet
                     });
                 }
             }
@@ -1686,6 +1790,16 @@ ${getDatePrefix()}
                     if (d.answer) allAnswers.push(d.answer);
                 });
 
+                // 域名黑名单过滤：剔除黄页/虚假数据源
+                const regionCfg = getRegionCountryCodes(region);
+                const beforeFilter = allItems.length;
+                for (let i = allItems.length - 1; i >= 0; i--) {
+                    if (allItems[i] && isBlacklistedDomain(allItems[i].url)) {
+                        allItems.splice(i, 1);
+                    }
+                }
+                console.log('[硬门] 域名黑名单过滤: ' + beforeFilter + ' → ' + allItems.length + ' 条');
+
                 // 提取邮箱、电话、社交链接、域名（带来源归属）
                 const discoveredEmails = [];
                 const rawPhones = [];
@@ -1696,7 +1810,7 @@ ${getDatePrefix()}
                 });
 
                 // Deep Recon: 带来源的提取
-                const phonesWithSources = extractPhonesWithSources(allItems);
+                const phonesWithSources = extractPhonesWithSources(allItems, regionCfg);
                 const emailsWithSources = extractEmailsWithSources(allItems);
 
                 // 为带来源的电话号码添加地理标记和国家码
@@ -1728,31 +1842,31 @@ ${getDatePrefix()}
                 });
                 const mergedEmails = Array.from(emailMap.values());
 
-                // 区域电话过滤（保留来源信息）
-                const uniqueRawPhones = [...new Set(rawPhones)];
-                const filteredPhones = filterPhonesByRegion(uniqueRawPhones, region, name, company);
+                // 硬门过滤后的电话已含来源+片段，只需评置信度
+                const uniqueRawPhones = phonesWithSources.map(p => p.raw);
+                const scoredPhones = filterPhonesByRegion(uniqueRawPhones, region, name, company);
 
-                // 将来源和地理标记合并到筛选后的电话
-                const phoneSourceMap = new Map();
-                phonesWithSources.forEach(p => {
-                    const key = p.digits.slice(-10);
-                    if (!phoneSourceMap.has(key)) phoneSourceMap.set(key, []);
-                    phoneSourceMap.get(key).push(p);
+                // 合并置信度回带来源的电话
+                const scoreMap = new Map();
+                scoredPhones.forEach(sp => {
+                    const key = sp.digits.slice(-10);
+                    scoreMap.set(key, { confidence: sp.confidence, score: sp.score, countryCode: sp.countryCode, localDigits: sp.localDigits });
                 });
-                const enrichedPhones = filteredPhones.map(p => {
-                    const key = p.digits.slice(-10);
-                    const sources = phoneSourceMap.get(key) || [];
-                    const bestSource = sources.length > 0 ? sources[0] : null;
-                    return {
-                        ...p,
-                        source: bestSource ? bestSource.source : '',
-                        sourceLabel: bestSource ? bestSource.sourceLabel : '',
-                        publishedDate: bestSource ? bestSource.publishedDate : '',
-                        geoTag: bestSource ? bestSource.geoTag : geoTagPhone(p.digits, p.countryCode)
-                    };
+                const enrichedPhones = phonesWithSources
+                    .filter(p => scoreMap.has(p.digits.slice(-10)))
+                    .map(p => {
+                        const sc = scoreMap.get(p.digits.slice(-10));
+                        return { ...p, confidence: sc.confidence, score: sc.score, countryCode: p.countryCode || sc.countryCode, localDigits: sc.localDigits };
+                    })
+                    .sort((a, b) => (b.score || 0) - (a.score || 0))
+                    .slice(0, 5);
+
+                // 为带来源的电话号码添加地理标记
+                enrichedPhones.forEach(p => {
+                    if (!p.geoTag) p.geoTag = geoTagPhone(p.digits, p.countryCode);
                 });
 
-                console.log('[侦察] 原始号码:', uniqueRawPhones.length, '→ 筛选后:', filteredPhones.length, '含来源:', enrichedPhones.length);
+                console.log('[硬门] 有效号码:', enrichedPhones.length, '/', uniqueRawPhones.length, '→ 最终:', enrichedPhones.map(p => p.raw + '[' + p.confidence + ']'));
 
                 const socialUrls = extractSocialUrls(allItems);
                 const whatsAppLinks = extractWhatsApp(allItems);
@@ -1871,28 +1985,32 @@ ${getDatePrefix()}
                         const srcLabel = src && src.label ? src.label : 'Tavily 搜索结果';
                         const srcUrl = src && src.url ? src.url : '';
                         const srcDisplay = srcUrl
-                            ? '<a href="' + srcUrl + '" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline underline-offset-2">' + srcLabel.slice(0, 35) + '</a>'
+                            ? '<a href="' + srcUrl + '" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline underline-offset-2">' + srcLabel.slice(0, 30) + '</a>'
                             : '<span class="text-slate-500">' + srcLabel + '</span>';
                         rows += '<tr class="border-b border-slate-700/50 hover:bg-slate-800/40">' +
                             '<td class="py-2 px-2"><span class="text-emerald-300 text-[11px] font-mono break-all">' + email + '</span></td>' +
                             '<td class="py-2 px-2 text-[10px] text-slate-500 whitespace-nowrap">—</td>' +
-                            '<td class="py-2 px-2 text-[10px]">' + srcDisplay + '</td>' +
+                            '<td class="py-2 px-2 text-[10px] max-w-[140px] truncate">' + srcDisplay + '</td>' +
                             '<td class="py-2 px-2 text-[10px]">—</td>' +
                             '</tr>';
                     });
                 }
 
-                // 电话号码行（含地理标记和新鲜度）
+                // 电话号码行（含地理标记、新鲜度、文本片段）
                 if (hasPhone) {
                     filteredPhones.forEach(p => {
                         const confColor = p.confidence === '高' ? 'text-emerald-400' : p.confidence === '中' ? 'text-amber-400' : 'text-slate-400';
                         const waUrl = phoneToWhatsAppUrl(p);
                         const geoTag = p.geoTag || '';
                         const freshness = p.publishedDate ? getFreshnessLabel(p.publishedDate) : '';
-                        const srcLabel = p.sourceLabel ? p.sourceLabel.slice(0, 35) : '';
+                        const srcLabel = p.sourceLabel ? p.sourceLabel.slice(0, 25) : '';
+                        const snippet = p.contextSnippet || '';
+                        const snippetDisplay = snippet
+                            ? '<div class="text-[8px] text-slate-500 mt-0.5 truncate max-w-[180px]" title="' + snippet.replace(/"/g, '&quot;') + '">' + snippet.slice(0, 50) + '…</div>'
+                            : '';
                         const srcDisplay = p.source
-                            ? '<a href="' + p.source + '" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline underline-offset-2">' + srcLabel + '</a>'
-                            : '<span class="text-slate-500">Tavily</span>';
+                            ? '<a href="' + p.source + '" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 text-[9px]">' + srcLabel + '</a>' + snippetDisplay
+                            : '<span class="text-slate-500 text-[9px]">Tavily</span>' + snippetDisplay;
                         const waDisplay = waUrl
                             ? '<a href="' + waUrl + '" target="_blank" class="text-emerald-400 hover:text-emerald-300 text-[10px] font-bold underline underline-offset-2">[WA]</a>'
                             : '—';
@@ -1909,7 +2027,7 @@ ${getDatePrefix()}
                             '<span class="text-[9px] px-1.5 py-0.5 rounded ' + (p.confidence === '高' ? 'bg-emerald-900/40' : p.confidence === '中' ? 'bg-amber-900/40' : 'bg-slate-800') + ' ' + confColor + '">' + p.confidence + '</span>' +
                             freshness + '</td>' +
                             '<td class="py-2 px-2 text-[10px]">' + regionDisplay + '</td>' +
-                            '<td class="py-2 px-2 text-[10px] max-w-[140px] truncate">' + srcDisplay + '</td>' +
+                            '<td class="py-2 px-2 text-[10px] max-w-[200px]">' + srcDisplay + '</td>' +
                             '<td class="py-2 px-2 text-[10px] text-center">' + waDisplay + '</td>' +
                             '</tr>';
                     });
@@ -1919,7 +2037,7 @@ ${getDatePrefix()}
                 if (hasWA) {
                     whatsAppLinks.forEach(l => {
                         rows += '<tr class="border-b border-slate-700/50 hover:bg-slate-800/40">' +
-                            '<td class="py-2 px-2"><a href="' + l + '" target="_blank" class="text-cyan-300 text-[11px] underline underline-offset-2 hover:text-cyan-200 truncate block max-w-[240px]">' + l + '</a></td>' +
+                            '<td class="py-2 px-2"><a href="' + l + '" target="_blank" class="text-cyan-300 text-[11px] underline underline-offset-2 hover:text-cyan-200 truncate block max-w-[200px]">' + l + '</a></td>' +
                             '<td class="py-2 px-2 text-[10px] text-slate-500">—</td>' +
                             '<td class="py-2 px-2 text-[10px] text-slate-500">WhatsApp 链接</td>' +
                             '<td class="py-2 px-2 text-[10px] text-center"><span class="text-emerald-400 text-[9px]">✓</span></td>' +
@@ -1929,7 +2047,7 @@ ${getDatePrefix()}
 
                 const regionLabel = regionCfg ? '（区域过滤: ' + regionCfg.name + '）' : '';
                 contactTableHtml = '<div class="bg-slate-900/60 border border-cyan-500/30 rounded-lg p-3 mb-4 overflow-x-auto">' +
-                    '<p class="text-cyan-400 font-bold text-xs tracking-widest mb-2">联系渠道 ' + (rawPhonesCount > 5 ? '<span class="text-amber-400 font-normal text-[10px]">原始' + rawPhonesCount + '个 → 筛选后</span>' : '') + regionLabel + '</p>' +
+                    '<p class="text-cyan-400 font-bold text-xs tracking-widest mb-2">联系渠道 ' + (rawPhonesCount > 5 ? '<span class="text-amber-400 font-normal text-[10px]">通过校验' + rawPhonesCount + '个 → 终选</span>' : '') + regionLabel + '</p>' +
                     '<table class="w-full text-left border-collapse">' +
                     '<thead><tr class="border-b border-cyan-500/30 text-[10px] text-slate-400 tracking-wider">' +
                     '<th class="py-1.5 px-2 font-semibold">号码 / 邮箱</th>' +
@@ -1963,7 +2081,7 @@ ${getDatePrefix()}
                 '<div><span class="text-slate-500">' + regionFilterLabel + '</span><span class="text-cyan-300">' + domainInfo + '</span></div>' +
                 '<div><span class="text-slate-500">邮箱模式：</span><span class="text-cyan-300">' + emailPattern + '</span></div>' +
                 '<div><span class="text-slate-500">公开邮箱：</span><span class="text-emerald-300">' + publicEmailCount + ' 个</span></div>' +
-                '<div><span class="text-slate-500">电话：</span><span class="text-cyan-300">' + filteredPhones.length + ' 个' + (rawPhonesCount > 0 ? '（原始' + rawPhonesCount + '个）' : '') + '</span></div>' +
+                '<div><span class="text-slate-500">电话：</span><span class="text-cyan-300">' + filteredPhones.length + ' 个' + (rawPhonesCount > 0 ? '（通过校验' + rawPhonesCount + '个）' : '') + '</span></div>' +
                 '<div><span class="text-slate-500">社交资料：</span><span class="text-cyan-300">' + allSocialLinks.length + ' 条</span></div>' +
                 '</div></div>';
 
