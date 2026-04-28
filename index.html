@@ -308,7 +308,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-28 15:51:50" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-28 16:36:12" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -1224,55 +1224,38 @@ ${getDatePrefix()}
         // ==========================================
         function buildReconQueries(name, company, region, industry) {
             const ind = industry || '起重机 重型机械 工业设备 工程机械';
-            const queries = [];
-            if (name && company) {
-                queries.push(`site:linkedin.com/in "${name}" "${company}" crane machinery`);
-                queries.push(`site:facebook.com "${name}" "${company}" crane heavy machinery`);
-                queries.push(`site:instagram.com "${name}" "${company}"`);
-                queries.push(`"${name}" "${company}" whatsapp contact phone wa.me`);
-                queries.push(`"${name}" "${company}" email address contact directory`);
-                queries.push(`"${name}" "${company}" ${ind} profile`);
-                queries.push(`"${company}" employees directory contact email phone`);
-                if (region) queries.push(`"${name}" "${company}" "${region}" contact number`);
-                if (region) queries.push(`"${company}" "${region}" crane machinery import export`);
-            } else if (name) {
-                queries.push(`site:linkedin.com/in "${name}" crane heavy machinery`);
-                queries.push(`site:facebook.com "${name}" crane machinery`);
-                queries.push(`site:instagram.com "${name}"`);
-                queries.push(`"${name}" whatsapp contact phone wa.me`);
-                queries.push(`"${name}" email contact information business`);
-                queries.push(`"${name}" ${ind} profile directory`);
-                if (region) queries.push(`"${name}" "${region}" phone contact`);
-            } else if (company) {
-                queries.push(`site:linkedin.com/company "${company}" crane heavy machinery`);
-                queries.push(`site:facebook.com "${company}" crane machinery`);
-                queries.push(`"${company}" official website email contact phone`);
-                queries.push(`"${company}" employees LinkedIn directory`);
-                queries.push(`"${company}" whatsapp contact number wa.me`);
-                queries.push(`"${company}" email format phone number`);
-                if (region) queries.push(`"${company}" "${region}" office contact crane`);
-                if (region) queries.push(`"${company}" "${region}" construction heavy equipment`);
-            }
-            if (!name && !company && region) {
-                queries.push(`${region} crane heavy machinery importers directory contact`);
-                queries.push(`${region} construction equipment wholesalers whatsapp`);
-            }
-            // Industry-specific deep queries
-            const indSuffix = ind + ' contact email phone whatsapp';
-            if (name || company) {
-                queries.push(`"${name || company}" crane export import manager whatsapp`);
-                queries.push(`"${name || company}" heavy equipment sales director linkedin`);
-            }
-            // 社交媒体"最近提及"深度抓取 — 从帖子正文而非简介中提取号码
-            if (name || company) {
-                queries.push(`"${name || company}" facebook post contact phone number 2024 2025`);
-                queries.push(`"${name || company}" instagram post contact whatsapp phone`);
-                queries.push(`"${name || company}" recently updated contact information whatsapp`);
-                queries.push(`"${name || company}" "phone" OR "whatsapp" OR "contact" posted recently`);
-            }
-            // 所有查询强制附加行业过滤词，剔除SEO垃圾
             const industryFilter = '(起重机 OR 起重 OR 工业 OR 钢铁 OR heavy machinery OR construction)';
-            return queries.map(q => q + ' ' + industryFilter);
+            const queries = [];
+
+            // 1. 广泛搜索
+            let broadQuery = [name, company, region, '起重机行业', ind].filter(Boolean).join(' ');
+            if (broadQuery.length < 5) broadQuery = (name || company || region || 'crane industry') + ' crane machinery contact';
+            queries.push(broadQuery + ' ' + industryFilter);
+
+            // 2. Facebook 深度搜索
+            const fbTarget = name || company || region;
+            if (fbTarget) {
+                queries.push(`site:facebook.com "${fbTarget}" (WhatsApp OR 联系方式 OR "phone" OR "call" OR "+") ` + industryFilter);
+            }
+
+            // 3. LinkedIn 片段搜索
+            const liTarget = name || company;
+            if (liTarget) {
+                queries.push(`site:linkedin.com/in "${liTarget}" (联系方式 OR 电子邮件 OR 手机号码 OR phone OR email OR contact) ` + industryFilter);
+            }
+
+            // 4. Instagram/社交媒体搜索
+            const smTarget = [name || company, region].filter(Boolean).join(' ');
+            if (smTarget.length > 2) {
+                queries.push(`site:instagram.com "${smTarget}" contact whatsapp phone ` + industryFilter);
+            }
+
+            // 兜底：至少4条查询
+            while (queries.length < 4) {
+                queries.push([name || company || 'crane', 'contact phone whatsapp email', industryFilter].filter(Boolean).join(' '));
+            }
+
+            return queries.slice(0, 4);
         }
 
         // ==========================================
@@ -1516,6 +1499,12 @@ ${getDatePrefix()}
                 } catch(e) {}
             }
 
+            // +200 "新鲜度优先于个人资料"：内容含活动关键词
+            const activityKeywords = /联系我|contact me|whatsapp|电话|手机|拨打|致电|ph_c|call me|reach me|mobile|my number|热线|联系方式/i;
+            if (activityKeywords.test(label) || (contact.contextSnippet && activityKeywords.test(contact.contextSnippet))) {
+                score += 200;
+            }
+
             // +50 LinkedIn / 官方域名
             if (u.includes('linkedin.com') || label.includes('linkedin')) score += 50;
             else if (company) {
@@ -1598,6 +1587,28 @@ ${getDatePrefix()}
                 result.push(best);
             }
             return result;
+        }
+
+        // ==========================================
+        // 联系类型分类
+        // ==========================================
+        function getContactType(url, label, publishedDate) {
+            if (!url) return '搜索结果';
+            const u = url.toLowerCase();
+            const l = (label || '').toLowerCase();
+            if (u.includes('linkedin.com') || l.includes('linkedin')) return '静态个人资料';
+            if (u.includes('facebook.com') || l.includes('facebook')) {
+                if (publishedDate) return '最新帖子';
+                return '社交媒体';
+            }
+            if (u.includes('instagram.com') || l.includes('instagram')) return '社交媒体';
+            if (u.includes('wa.me') || u.includes('whatsapp.com') || l.includes('whatsapp')) return '社交消息';
+            try {
+                const hostname = new URL(url).hostname.replace('www.', '');
+                if (hostname.includes('.') && !/(linkedin|facebook|instagram|google|blogspot|twitter|youtube)/.test(hostname)) return '公司网站';
+            } catch(e) {}
+            if (u.includes('tavily.com')) return '搜索结果';
+            return '其他来源';
         }
 
         // ==========================================
@@ -2098,6 +2109,17 @@ ${getDatePrefix()}
                     if (!a.vip && b.vip) return 1;
                     return (b.score || 0) - (a.score || 0);
                 });
+                // 附加联系类型
+                finalPhones.forEach(p => {
+                    p.contactType = getContactType(p.source, p.sourceLabel, p.publishedDate);
+                });
+
+                // [最新动态] 标记：所有号码中发布日期最新的那条（即使超出24h也标记）
+                const phonesWithDate = finalPhones.filter(p => p.publishedDate);
+                if (phonesWithDate.length > 0) {
+                    phonesWithDate.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
+                    phonesWithDate[0].vip = true;
+                }
 
                 // 分离 B2B 低质结果（权威性 ≤10 的默认折叠）
                 const highQualityPhones = finalPhones.filter(p => (p.sourceAuthority || 0) > 10);
@@ -2233,7 +2255,7 @@ ${getDatePrefix()}
 
                 // 邮箱行
                 if (hasEmail) {
-                    mergedEmails.forEach(entry => {
+                    mergedEmails.forEach((entry, idx) => {
                         const email = entry.email;
                         const src = entry.sources && entry.sources.length > 0 ? entry.sources[0] : null;
                         const srcUrl = src && src.url ? src.url : '';
@@ -2242,6 +2264,8 @@ ${getDatePrefix()}
                             ? '<a href="' + srcUrl + '" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 text-[10px]">' + srcLabel + '</a>'
                             : '<span class="text-slate-500 text-[10px]">' + srcLabel + '</span>';
                         rows += '<tr class="border-b border-slate-700/50 hover:bg-slate-800/40 transition">' +
+                            '<td class="py-2.5 px-1.5 text-[9px] text-slate-500 text-center font-mono">' + (idx + 1) + '</td>' +
+                            '<td class="py-2.5 px-1.5"><span class="text-[8px] px-1.5 py-0.5 rounded border border-emerald-500/40 text-emerald-300 font-medium tracking-wider">邮箱</span></td>' +
                             '<td class="py-2.5 px-2 text-center"><span class="text-[9px] px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 font-bold tracking-wider">已验证</span></td>' +
                             '<td class="py-2.5 px-2"><span class="text-emerald-300 text-[11px] font-mono break-all">' + email + '</span></td>' +
                             '<td class="py-2.5 px-2 text-[10px] text-slate-500 whitespace-nowrap">—</td>' +
@@ -2250,9 +2274,10 @@ ${getDatePrefix()}
                     });
                 }
 
-                // 终选号码行（置信度 | 联系 | 地区 | 已验证来源链接）
+                // 终选号码行（# | 类型 | 置信度 | 联系 | 地区 | 来源）
                 if (hasPhone) {
-                    filteredPhones.forEach(p => {
+                    filteredPhones.forEach((p, idx) => {
+                        const rowNum = idx + 1;
                         const confColor = p.confidence === '高' ? 'text-emerald-400 bg-emerald-900/40' : p.confidence === '中' ? 'text-amber-400 bg-amber-900/40' : 'text-slate-400 bg-slate-800';
                         const waUrl = phoneToWhatsAppUrl(p);
                         const geoTag = p.geoTag || '';
@@ -2262,6 +2287,11 @@ ${getDatePrefix()}
                         const snippetDisplay = snippet
                             ? '<div class="text-[7px] text-slate-600 mt-0.5 truncate max-w-[200px]" title="' + snippetAttr + '">' + snippet.slice(0, 55) + '…</div>'
                             : '';
+                        // 类型标签配色
+                        const typeColor = p.contactType === '最新帖子' ? 'text-rose-300 border-rose-500/40' :
+                            p.contactType === '静态个人资料' ? 'text-cyan-300 border-cyan-500/40' :
+                            p.contactType === '公司网站' ? 'text-emerald-300 border-emerald-500/40' :
+                            'text-slate-400 border-slate-500/40';
                         // 智能来源行：列出所有唯一来源链接
                         const allSources = p.allSources && p.allSources.length > 0 ? p.allSources : [{ url: p.source, label: p.sourceLabel }];
                         const srcLinks = allSources.map(s => {
@@ -2289,25 +2319,29 @@ ${getDatePrefix()}
                         // 联系列：号码 + 新鲜度 + WhatsApp + VIP 标记
                         let contactDisplay = '<span class="text-cyan-300 text-[11px] font-mono whitespace-nowrap">' + p.raw + '</span>' + freshness;
                         if (p.vip) {
-                            contactDisplay += ' <span class="text-rose-400 text-[9px] font-bold animate-pulse border border-rose-500/50 px-1.5 py-0.5 rounded tracking-wider">[VIP/最新]</span>';
+                            contactDisplay += ' <span class="text-rose-400 text-[9px] font-bold animate-pulse border border-rose-500/50 px-1.5 py-0.5 rounded tracking-wider">[最新动态]</span>';
                         }
                         if (waUrl) {
                             contactDisplay += ' <a href="' + waUrl + '" target="_blank" class="text-emerald-400 hover:text-emerald-300 text-[9px] font-bold underline underline-offset-2">[WA]</a>';
                         }
 
                         rows += '<tr class="border-b border-slate-700/50 hover:bg-slate-800/40 transition">' +
+                            '<td class="py-2.5 px-1.5 text-[9px] text-slate-500 text-center font-mono">' + rowNum + '</td>' +
+                            '<td class="py-2.5 px-1.5"><span class="text-[8px] px-1.5 py-0.5 rounded border ' + typeColor + ' font-medium tracking-wider whitespace-nowrap">' + (p.contactType || '—') + '</span></td>' +
                             '<td class="py-2.5 px-2 text-center"><span class="text-[9px] px-2 py-0.5 rounded font-bold tracking-wider ' + confColor + '">' + p.confidence + '</span></td>' +
                             '<td class="py-2.5 px-2">' + contactDisplay + '</td>' +
                             '<td class="py-2.5 px-2 text-[10px]">' + regionDisplay + '</td>' +
-                            '<td class="py-2.5 px-2 text-[10px] max-w-[200px]">' + srcDisplay + '</td>' +
+                            '<td class="py-2.5 px-2 text-[10px] max-w-[140px]">' + srcDisplay + '</td>' +
                             '</tr>';
                     });
                 }
 
                 // WhatsApp 专属行
                 if (hasWA) {
-                    whatsAppLinks.forEach(l => {
+                    whatsAppLinks.forEach((l, idx) => {
                         rows += '<tr class="border-b border-slate-700/50 hover:bg-slate-800/40 transition">' +
+                            '<td class="py-2.5 px-1.5 text-[9px] text-slate-500 text-center font-mono">' + (filteredPhones.length + idx + 1) + '</td>' +
+                            '<td class="py-2.5 px-1.5"><span class="text-[8px] px-1.5 py-0.5 rounded border border-cyan-500/40 text-cyan-300 font-medium tracking-wider">社交消息</span></td>' +
                             '<td class="py-2.5 px-2 text-center"><span class="text-[9px] px-2 py-0.5 rounded bg-cyan-900/40 text-cyan-400 font-bold">WA</span></td>' +
                             '<td class="py-2.5 px-2"><a href="' + l + '" target="_blank" class="text-cyan-300 text-[11px] underline underline-offset-2 hover:text-cyan-200 truncate block max-w-[200px]">' + l + '</a></td>' +
                             '<td class="py-2.5 px-2 text-[10px] text-slate-500">—</td>' +
@@ -2323,10 +2357,12 @@ ${getDatePrefix()}
                     '</div>' +
                     '<table class="w-full text-left border-collapse">' +
                     '<thead><tr class="border-b border-cyan-500/30 text-[9px] text-slate-500 tracking-wider uppercase">' +
-                    '<th class="py-1.5 px-2 font-semibold w-[60px]">置信度</th>' +
+                    '<th class="py-1.5 px-1.5 font-semibold w-[22px]">#</th>' +
+                    '<th class="py-1.5 px-1.5 font-semibold w-[62px]">类型</th>' +
+                    '<th class="py-1.5 px-2 font-semibold w-[48px]">置信度</th>' +
                     '<th class="py-1.5 px-2 font-semibold">联系</th>' +
-                    '<th class="py-1.5 px-2 font-semibold w-[70px]">地区</th>' +
-                    '<th class="py-1.5 px-2 font-semibold">已验证来源链接</th>' +
+                    '<th class="py-1.5 px-2 font-semibold w-[60px]">地区</th>' +
+                    '<th class="py-1.5 px-2 font-semibold">来源</th>' +
                     '</tr></thead>' +
                     '<tbody>' + rows + '</tbody>' +
                     '</table></div>';
