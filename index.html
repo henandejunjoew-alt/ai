@@ -308,7 +308,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-28 15:41:13" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-28 15:51:50" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -1263,6 +1263,13 @@ ${getDatePrefix()}
                 queries.push(`"${name || company}" crane export import manager whatsapp`);
                 queries.push(`"${name || company}" heavy equipment sales director linkedin`);
             }
+            // 社交媒体"最近提及"深度抓取 — 从帖子正文而非简介中提取号码
+            if (name || company) {
+                queries.push(`"${name || company}" facebook post contact phone number 2024 2025`);
+                queries.push(`"${name || company}" instagram post contact whatsapp phone`);
+                queries.push(`"${name || company}" recently updated contact information whatsapp`);
+                queries.push(`"${name || company}" "phone" OR "whatsapp" OR "contact" posted recently`);
+            }
             // 所有查询强制附加行业过滤词，剔除SEO垃圾
             const industryFilter = '(起重机 OR 起重 OR 工业 OR 钢铁 OR heavy machinery OR construction)';
             return queries.map(q => q + ' ' + industryFilter);
@@ -1497,6 +1504,17 @@ ${getDatePrefix()}
             const sourceUrl = contact.source || '';
             const u = sourceUrl.toLowerCase();
             const label = (contact.sourceLabel || '').toLowerCase();
+
+            // +100 时间戳优先：24小时内发布的帖子覆盖任何静态资料
+            if (contact.publishedDate) {
+                try {
+                    const pub = new Date(contact.publishedDate);
+                    if (!isNaN(pub.getTime())) {
+                        const hoursAgo = (Date.now() - pub.getTime()) / 3600000;
+                        if (hoursAgo >= 0 && hoursAgo <= 24) score += 100;
+                    }
+                } catch(e) {}
+            }
 
             // +50 LinkedIn / 官方域名
             if (u.includes('linkedin.com') || label.includes('linkedin')) score += 50;
@@ -2063,6 +2081,24 @@ ${getDatePrefix()}
                 // Top 10 硬性限制
                 const finalPhones = dedupedPhones.slice(0, 10);
 
+                // VIP 标记：24小时内发布的号码强制置顶
+                const now = Date.now();
+                finalPhones.forEach(p => {
+                    if (p.publishedDate) {
+                        try {
+                            const pub = new Date(p.publishedDate);
+                            if (!isNaN(pub.getTime()) && (now - pub.getTime()) / 3600000 <= 24) {
+                                p.vip = true;
+                            }
+                        } catch(e) {}
+                    }
+                });
+                finalPhones.sort((a, b) => {
+                    if (a.vip && !b.vip) return -1;
+                    if (!a.vip && b.vip) return 1;
+                    return (b.score || 0) - (a.score || 0);
+                });
+
                 // 分离 B2B 低质结果（权威性 ≤10 的默认折叠）
                 const highQualityPhones = finalPhones.filter(p => (p.sourceAuthority || 0) > 10);
                 const lowQualityPhones = finalPhones.filter(p => (p.sourceAuthority || 0) <= 10);
@@ -2250,8 +2286,11 @@ ${getDatePrefix()}
                             regionDisplay = '<span class="text-slate-400 text-[10px]">+' + p.countryCode + '</span>';
                         }
 
-                        // 联系列：号码 + 新鲜度 + WhatsApp
+                        // 联系列：号码 + 新鲜度 + WhatsApp + VIP 标记
                         let contactDisplay = '<span class="text-cyan-300 text-[11px] font-mono whitespace-nowrap">' + p.raw + '</span>' + freshness;
+                        if (p.vip) {
+                            contactDisplay += ' <span class="text-rose-400 text-[9px] font-bold animate-pulse border border-rose-500/50 px-1.5 py-0.5 rounded tracking-wider">[VIP/最新]</span>';
+                        }
                         if (waUrl) {
                             contactDisplay += ' <a href="' + waUrl + '" target="_blank" class="text-emerald-400 hover:text-emerald-300 text-[9px] font-bold underline underline-offset-2">[WA]</a>';
                         }
