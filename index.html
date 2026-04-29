@@ -56,6 +56,59 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.3); border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(56, 189, 248, 0.6); }
+        /* ======== 德德 (Dede) AI 吉祥物 ======== */
+        .dede-container { position: fixed; left: 20px; top: 200px; z-index: 9999; cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none; }
+        .dede-container:active { cursor: grabbing; }
+        .dede-container.dede-dragging { transition: none !important; }
+        .dede { position: relative; display: flex; flex-direction: column; align-items: center; width: 88px; transition: filter 0.3s; }
+        .dede-head { position: relative; width: 72px; height: 52px; background: linear-gradient(145deg, #1e293b, #0f172a); border: 2px solid rgba(56,189,248,0.25); border-radius: 12px 12px 10px 10px; display: flex; align-items: center; justify-content: center; gap: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06); }
+        .dede-ear { position: absolute; top: 8px; width: 8px; height: 14px; background: linear-gradient(180deg, #334155, #1e293b); border: 1px solid rgba(56,189,248,0.2); border-radius: 3px; }
+        .dede-ear.left { left: -6px; }
+        .dede-ear.right { right: -6px; }
+        .dede-eye { position: relative; width: 20px; height: 20px; background: #0f172a; border: 2px solid rgba(56,189,248,0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 12px rgba(6,182,212,0.2), inset 0 0 8px rgba(6,182,212,0.1); overflow: hidden; transition: border-color 0.4s, box-shadow 0.4s; }
+        .dede-pupil { width: 10px; height: 10px; background: radial-gradient(circle, #67e8f9, #06b6d4); border-radius: 50%; box-shadow: 0 0 10px rgba(6,182,212,0.8), 0 0 20px rgba(6,182,212,0.3); transition: all 0.3s; }
+        .dede-visor { position: absolute; bottom: 8px; width: 32px; height: 3px; background: rgba(56,189,248,0.15); border-radius: 2px; }
+        .dede-neck { width: 12px; height: 10px; background: repeating-linear-gradient(0deg, #1e293b 0px, #1e293b 2px, #0f172a 2px, #0f172a 4px); border-left: 1px solid rgba(56,189,248,0.15); border-right: 1px solid rgba(56,189,248,0.15); }
+        .dede-body-part { width: 62px; height: 36px; background: linear-gradient(145deg, #1e293b, #0f172a); border: 1.5px solid rgba(56,189,248,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .dede-panel { width: 36px; height: 20px; background: rgba(6,182,212,0.08); border: 1px solid rgba(56,189,248,0.15); border-radius: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .dede-panel-dot { width: 4px; height: 4px; background: #06b6d4; border-radius: 50%; box-shadow: 0 0 6px rgba(6,182,212,0.6); }
+        .dede-track { width: 20px; height: 14px; background: linear-gradient(180deg, #1e293b, #0f172a); border: 1.5px solid rgba(56,189,248,0.15); border-radius: 4px 4px 8px 8px; margin-top: -2px; box-shadow: inset 0 -2px 4px rgba(0,0,0,0.6); }
+        .dede-track.left { transform: translateX(-14px); }
+        .dede-track.right { transform: translateX(14px); }
+
+        /* Eye state: Idle - slow blink */
+        @keyframes dede-blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } 98% { transform: scaleY(0.1); } }
+        .dede-idle .dede-eye { animation: dede-blink 4s ease-in-out infinite; }
+
+        /* Eye state: Warning - orange flash */
+        @keyframes dede-warning-glow { 0%, 100% { border-color: rgba(251,146,60,0.6); box-shadow: 0 0 15px rgba(251,146,60,0.3); } 50% { border-color: rgba(251,146,60,0.9); box-shadow: 0 0 25px rgba(251,146,60,0.6); } }
+        @keyframes dede-warning-eye { 0%, 100% { background: radial-gradient(circle, #fdba74, #f97316); box-shadow: 0 0 15px rgba(249,115,22,0.9); } 50% { background: radial-gradient(circle, #f97316, #ea580c); box-shadow: 0 0 25px rgba(249,115,22,0.9); } }
+        .dede-warning .dede-eye { animation: dede-warning-glow 0.8s ease-in-out infinite; border-color: rgba(251,146,60,0.7); }
+        .dede-warning .dede-pupil { animation: dede-warning-eye 0.8s ease-in-out infinite; }
+        .dede-warning .dede-head { border-color: rgba(251,146,60,0.4); }
+        .dede-warning .dede-panel-dot { background: #f97316; box-shadow: 0 0 6px rgba(249,115,22,0.6); }
+
+        /* Eye state: Processing - spinning */
+        @keyframes dede-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes dede-processing-glow { 0%, 100% { border-color: rgba(56,189,248,0.6); box-shadow: 0 0 15px rgba(6,182,212,0.4), inset 0 0 10px rgba(6,182,212,0.1); } 50% { border-color: rgba(56,189,248,0.9); box-shadow: 0 0 25px rgba(6,182,212,0.6), inset 0 0 15px rgba(6,182,212,0.2); } }
+        .dede-processing .dede-eye { animation: dede-processing-glow 1s ease-in-out infinite; }
+        .dede-processing .dede-pupil { width: 8px; height: 8px; border: 2px solid transparent; border-top-color: #67e8f9; border-right-color: #06b6d4; background: transparent; box-shadow: none; animation: dede-spin 0.6s linear infinite; border-radius: 50%; }
+        .dede-processing .dede-visor { background: rgba(6,182,212,0.4); box-shadow: 0 0 8px rgba(6,182,212,0.3); }
+        .dede-processing .dede-panel-dot { animation: dede-spin 0.8s linear infinite; }
+
+        /* Speech bubble */
+        .dede-speech { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 10px; z-index: 10000; min-width: 180px; max-width: 260px; pointer-events: none; }
+        .dede-speech:not(.hidden) { animation: dede-fadeIn 0.3s ease-out; }
+        .dede-speech-content { background: rgba(15,23,42,0.95); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(56,189,248,0.25); border-radius: 12px; padding: 10px 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(6,182,212,0.08); position: relative; }
+        .dede-speech-arrow { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid rgba(15,23,42,0.95); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+        .dede-speech-text { color: #e2e8f0; font-size: 11px; line-height: 1.5; display: block; text-align: center; }
+        .dede-speech-text .highlight { color: #22d3ee; }
+        @keyframes dede-fadeIn { 0% { opacity: 0; transform: translateX(-50%) translateY(6px); } 100% { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+        .dede-dragging .dede-head { border-color: rgba(56,189,248,0.5); }
+        .dede-dragging .dede { filter: brightness(1.2); }
+        .dede-hidden { display: none !important; }
+
         input, textarea, select {
             background: rgba(0,0,0,0.6) !important;
             border: 1px solid rgba(100,116,139,0.3) !important;
@@ -320,7 +373,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-28 17:49:49" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-29 09:46:42" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -2981,6 +3034,215 @@ Hunter邮箱详情：${hunterInfo}
             const ts = el.getAttribute('data-ts');
             if (ts) el.textContent = 'v' + ts + ' CST';
         })();
+    </script>
+
+    <!-- ======== 德德 (Dede) AI 吉祥物 ======== -->
+    <div id="dede-container" class="dede-container">
+        <div id="dede-speech" class="dede-speech hidden">
+            <div class="dede-speech-content">
+                <span id="dede-speech-text" class="dede-speech-text"></span>
+                <div class="dede-speech-arrow"></div>
+            </div>
+        </div>
+        <div id="dede" class="dede dede-idle" title="德德 — 拖拽移动">
+            <div class="dede-head">
+                <div class="dede-ear left"></div>
+                <div class="dede-ear right"></div>
+                <div class="dede-eye left"><div class="dede-pupil"></div></div>
+                <div class="dede-eye right"><div class="dede-pupil"></div></div>
+                <div class="dede-visor"></div>
+            </div>
+            <div class="dede-neck"></div>
+            <div class="dede-body-part">
+                <div class="dede-panel">
+                    <div class="dede-panel-dot"></div>
+                    <div class="dede-panel-dot"></div>
+                    <div class="dede-panel-dot"></div>
+                </div>
+            </div>
+            <div class="dede-track left"></div>
+            <div class="dede-track right"></div>
+        </div>
+    </div>
+
+    <script>
+    // ==========================================
+    // 德德 (Dede) AI 吉祥物 — 智能交互系统
+    // ==========================================
+    (function() {
+        'use strict';
+
+        var DedeState = { current: 'idle', speechTimer: null };
+        var dom = {};
+
+        function init() {
+            dom.container = document.getElementById('dede-container');
+            dom.robot = document.getElementById('dede');
+            dom.speech = document.getElementById('dede-speech');
+            dom.speechText = document.getElementById('dede-speech-text');
+            if (!dom.container || !dom.robot) return;
+
+            // Restore position from localStorage
+            try {
+                var saved = localStorage.getItem('dede_position');
+                if (saved) {
+                    var pos = JSON.parse(saved);
+                    dom.container.style.left = pos.x + 'px';
+                    dom.container.style.top = pos.y + 'px';
+                }
+            } catch(e) {}
+
+            setupDrag();
+            setupHooks();
+
+            // Welcome message after short delay
+            setTimeout(function() {
+                say('哈喽！我是<span class="highlight">德德</span>，您的智能情报助手 🤖');
+            }, 3000);
+        }
+
+        function setState(s) {
+            DedeState.current = s;
+            dom.robot.className = 'dede';
+            if (s === 'idle') dom.robot.classList.add('dede-idle');
+            else if (s === 'warning') dom.robot.classList.add('dede-warning');
+            else if (s === 'processing') dom.robot.classList.add('dede-processing');
+        }
+
+        function say(html, duration) {
+            dom.speechText.innerHTML = html;
+            dom.speech.classList.remove('hidden');
+            clearTimeout(DedeState.speechTimer);
+            DedeState.speechTimer = setTimeout(function() {
+                dom.speech.classList.add('hidden');
+            }, duration || 5000);
+        }
+
+        function hideSpeech() {
+            dom.speech.classList.add('hidden');
+            clearTimeout(DedeState.speechTimer);
+        }
+
+        // Click robot to dismiss speech
+        if (dom.robot) dom.robot.addEventListener('click', hideSpeech);
+
+        // ======== Drag (mouse + touch) ========
+        function setupDrag() {
+            var dragging = false, ox = 0, oy = 0;
+
+            function start(cx, cy) {
+                dragging = true;
+                ox = cx - dom.container.offsetLeft;
+                oy = cy - dom.container.offsetTop;
+                dom.container.style.transition = 'none';
+                dom.robot.classList.add('dede-dragging');
+            }
+
+            function move(cx, cy) {
+                if (!dragging) return;
+                var x = Math.max(0, Math.min(window.innerWidth - 100, cx - ox));
+                var y = Math.max(0, Math.min(window.innerHeight - 160, cy - oy));
+                dom.container.style.left = x + 'px';
+                dom.container.style.top = y + 'px';
+            }
+
+            function end() {
+                if (!dragging) return;
+                dragging = false;
+                dom.robot.classList.remove('dede-dragging');
+                dom.container.style.transition = '';
+                try {
+                    localStorage.setItem('dede_position', JSON.stringify({
+                        x: parseInt(dom.container.style.left) || 20,
+                        y: parseInt(dom.container.style.top) || 200
+                    }));
+                } catch(e) {}
+            }
+
+            dom.robot.addEventListener('mousedown', function(e) {
+                if (e.button !== 0) return;
+                start(e.clientX, e.clientY);
+                e.preventDefault();
+            });
+            document.addEventListener('mousemove', function(e) { move(e.clientX, e.clientY); });
+            document.addEventListener('mouseup', end);
+
+            dom.robot.addEventListener('touchstart', function(e) {
+                var t = e.touches[0];
+                start(t.clientX, t.clientY);
+            }, { passive: true });
+            document.addEventListener('touchmove', function(e) {
+                var t = e.touches[0];
+                move(t.clientX, t.clientY);
+            }, { passive: true });
+            document.addEventListener('touchend', end, { passive: true });
+        }
+
+        function isApiKeyMissing() {
+            var el = document.getElementById('api-key-input');
+            return !el || !el.value.trim();
+        }
+
+        // ======== Hook into global functions ========
+        function setupHooks() {
+            var targets = [
+                { fn: 'startDiagnosis', label: '商业背调', search: true },
+                { fn: 'startRecon', label: '战略侦察', search: true },
+                { fn: 'runCountryAnalysis', label: '地区分析', search: true },
+                { fn: 'runFullAnalysis', label: '深度分析', search: true },
+                { fn: 'finalSynthesis', label: '综合报告', search: true },
+                { fn: 'mockTranslate', label: '翻译', search: false },
+                { fn: 'refreshGeoAlert', label: '预警刷新', search: false }
+            ];
+
+            targets.forEach(function(item) {
+                var orig = window[item.fn];
+                if (typeof orig !== 'function') return;
+                window[item.fn] = function() {
+                    var self = this, args = arguments;
+
+                    // API key missing → warning
+                    if (item.search && isApiKeyMissing()) {
+                        setState('warning');
+                        say('嘟嘟！您忘记了密钥！请先在右上角填写。<br><span style="font-size:9px;color:#94a3b8;">德德提醒：还没填Key呢！</span>', 6000);
+                    }
+
+                    // Processing state
+                    if (item.search) {
+                        setState('processing');
+                        say('正在扫描深层网络寻找线索...<br><span style="font-size:9px;color:#94a3b8;">德德正在全网情报搜索中</span>', 15000);
+                    }
+
+                    var result = orig.apply(self, args);
+
+                    // If async → reset on completion
+                    if (result && typeof result.then === 'function') {
+                        return result.then(function(v) {
+                            setState('idle');
+                            hideSpeech();
+                            return v;
+                        }, function(err) {
+                            setState('idle');
+                            hideSpeech();
+                            throw err;
+                        });
+                    }
+
+                    // Sync: non-search functions reset after delay
+                    if (!item.search) {
+                        setTimeout(function() { setState('idle'); }, 3000);
+                    }
+                    return result;
+                };
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
     </script>
 </body>
 </html>
