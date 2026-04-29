@@ -57,11 +57,11 @@
         ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.3); border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(56, 189, 248, 0.6); }
         /* ======== 德德 (Dede) AI 吉祥物 ======== */
-        .dede-container { position: fixed; left: 20px; top: 200px; z-index: 9999; cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none; }
-        .dede-container:active { cursor: grabbing; }
-        .dede-container.dede-dragging { transition: none !important; }
-        .dede { position: relative; display: flex; flex-direction: column; align-items: center; width: 88px; transition: filter 0.3s; }
-        .dede-head { position: relative; width: 72px; height: 52px; background: linear-gradient(145deg, #1e293b, #0f172a); border: 2px solid rgba(56,189,248,0.25); border-radius: 12px 12px 10px 10px; display: flex; align-items: center; justify-content: center; gap: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06); }
+        .dede-container { position: fixed; left: 12px; top: 50%; transform: translateY(-50%); z-index: 9999; cursor: pointer; user-select: none; -webkit-user-select: none; transition: transform 0.3s ease; }
+        .dede-container:hover { transform: translateY(-50%) translateX(2px); }
+        .dede-container:hover .dede-eye { border-color: rgba(56,189,248,0.6); }
+        .dede { position: relative; display: flex; flex-direction: column; align-items: center; width: 76px; transition: filter 0.3s; }
+        .dede-head { position: relative; width: 72px; height: 52px; background: linear-gradient(145deg, #1e293b, #0f172a); border: 2px solid rgba(56,189,248,0.25); border-radius: 12px 12px 10px 10px; display: flex; align-items: center; justify-content: center; gap: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06); transition: border-color 0.3s; }
         .dede-ear { position: absolute; top: 8px; width: 8px; height: 14px; background: linear-gradient(180deg, #334155, #1e293b); border: 1px solid rgba(56,189,248,0.2); border-radius: 3px; }
         .dede-ear.left { left: -6px; }
         .dede-ear.right { right: -6px; }
@@ -76,6 +76,10 @@
         .dede-track.left { transform: translateX(-14px); }
         .dede-track.right { transform: translateX(14px); }
 
+        /* Idle breathing float */
+        @keyframes dede-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+        .dede-idle .dede { animation: dede-float 3s ease-in-out infinite; }
+
         /* Eye state: Idle - slow blink */
         @keyframes dede-blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } 98% { transform: scaleY(0.1); } }
         .dede-idle .dede-eye { animation: dede-blink 4s ease-in-out infinite; }
@@ -87,6 +91,7 @@
         .dede-warning .dede-pupil { animation: dede-warning-eye 0.8s ease-in-out infinite; }
         .dede-warning .dede-head { border-color: rgba(251,146,60,0.4); }
         .dede-warning .dede-panel-dot { background: #f97316; box-shadow: 0 0 6px rgba(249,115,22,0.6); }
+        .dede-warning .dede { animation: none; }
 
         /* Eye state: Processing - spinning */
         @keyframes dede-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -95,9 +100,10 @@
         .dede-processing .dede-pupil { width: 8px; height: 8px; border: 2px solid transparent; border-top-color: #67e8f9; border-right-color: #06b6d4; background: transparent; box-shadow: none; animation: dede-spin 0.6s linear infinite; border-radius: 50%; }
         .dede-processing .dede-visor { background: rgba(6,182,212,0.4); box-shadow: 0 0 8px rgba(6,182,212,0.3); }
         .dede-processing .dede-panel-dot { animation: dede-spin 0.8s linear infinite; }
+        .dede-processing .dede { animation: none; }
 
         /* Speech bubble */
-        .dede-speech { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 10px; z-index: 10000; min-width: 180px; max-width: 260px; pointer-events: none; }
+        .dede-speech { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 10px; z-index: 10000; min-width: 170px; max-width: 250px; pointer-events: none; }
         .dede-speech:not(.hidden) { animation: dede-fadeIn 0.3s ease-out; }
         .dede-speech-content { background: rgba(15,23,42,0.95); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(56,189,248,0.25); border-radius: 12px; padding: 10px 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(6,182,212,0.08); position: relative; }
         .dede-speech-arrow { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid rgba(15,23,42,0.95); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
@@ -105,9 +111,12 @@
         .dede-speech-text .highlight { color: #22d3ee; }
         @keyframes dede-fadeIn { 0% { opacity: 0; transform: translateX(-50%) translateY(6px); } 100% { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
-        .dede-dragging .dede-head { border-color: rgba(56,189,248,0.5); }
-        .dede-dragging .dede { filter: brightness(1.2); }
-        .dede-hidden { display: none !important; }
+        /* Idle pulsing thought dots */
+        .dede-thought { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; }
+        .dede-thought span { width: 4px; height: 4px; background: rgba(148,163,184,0.4); border-radius: 50%; animation: dede-thought-pulse 1.5s ease-in-out infinite; }
+        .dede-thought span:nth-child(2) { animation-delay: 0.3s; }
+        .dede-thought span:nth-child(3) { animation-delay: 0.6s; }
+        @keyframes dede-thought-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
 
         input, textarea, select {
             background: rgba(0,0,0,0.6) !important;
@@ -373,7 +382,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-29 09:46:42" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-29 10:11:25" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -3044,7 +3053,7 @@ Hunter邮箱详情：${hunterInfo}
                 <div class="dede-speech-arrow"></div>
             </div>
         </div>
-        <div id="dede" class="dede dede-idle" title="德德 — 拖拽移动">
+        <div id="dede" class="dede dede-idle" title="点我聊聊">
             <div class="dede-head">
                 <div class="dede-ear left"></div>
                 <div class="dede-ear right"></div>
@@ -3062,18 +3071,69 @@ Hunter邮箱详情：${hunterInfo}
             </div>
             <div class="dede-track left"></div>
             <div class="dede-track right"></div>
-        </div>
+            <div class="dede-thought"><span></span><span></span><span></span></div>
     </div>
 
     <script>
     // ==========================================
-    // 德德 (Dede) AI 吉祥物 — 智能交互系统
+    // 德德 (Dede) AI 吉祥物 — 智能交互系统 v2
     // ==========================================
     (function() {
         'use strict';
 
-        var DedeState = { current: 'idle', speechTimer: null };
+        var state = { current: 'idle', speechTimer: null, idleTimer: null, clickCount: 0 };
         var dom = {};
+
+        // ======== 德德台词本 ========
+        var lines = {
+            self: [
+                '嗯？我在呢。',
+                '盯着我看干嘛，干活去。',
+                '德德在线，有事请讲。',
+                '点我有啥用，点上面的按钮啊。',
+                '行行行，你最帅。',
+                '再点我就要收费了哦。',
+                '别看了，我脸上又没写答案。',
+            ],
+            'sec-rate': '汇率又动了？盯紧点，别让钱跑了。',
+            'sec-time': '查时间？报个地名，我秒回。',
+            'sec-tz': '全球时区都在这了，挑个顺眼的时间开工。',
+            'sec-trans': '翻译这事我熟，专业术语交给AI准没错。',
+            'sec-predict': '商业背调？查公司底细这事，包在我身上。',
+            'tab-biz': '背调模式，专治各种不靠谱客户。',
+            'tab-recon': '侦察模式启动，挖地三尺也给你找出来。',
+            'sec-geo': '世界又不太平了，看看哪条航线要绕道。',
+            'sec-feedback': '有话说？我听着呢。反正改bug的人不是我。',
+            'btn-rate': '汇率刷新… 其实我看不太懂，但刷了就安心。',
+            'btn-geo': '预警刷新中，世界和平靠你了。',
+            'settings': '改设置？Key填好了没就在这瞎转悠。',
+            'noKey': '喂！Key呢？没钥匙我怎么干活！右上角填一下！',
+            welcome: '哟，回来了？<span class="highlight">德德</span>已就位，随时待命。',
+            processing: [
+                '正在翻箱倒柜找线索…',
+                '全网搜刮中，目标跑不了。',
+                'AI大脑飞速运转，稍等。',
+                '让我算算… 嗯… 快了。',
+            ],
+            idle: [
+                '还在吗？发个呆也行，我陪你。',
+                '要不要试试点"分析客户公司"？我很好使的。',
+                '你看起来需要查个汇率，或者… 摸个鱼？',
+                '需要我帮忙吗？不开口我就继续沉默了。',
+                '好安静啊，你该不会睡着了吧？',
+                '喂，还活着吗？动一动。',
+            ],
+            // Processing done messages
+            done: [
+                '搞定！来看看结果吧。',
+                '完事，请过目。',
+                '好了，我的活干完了，该你了。',
+                '算完了，给你。',
+            ]
+        };
+
+        function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+        var selfIdx = 0;
 
         function init() {
             dom.container = document.getElementById('dede-container');
@@ -3082,27 +3142,15 @@ Hunter邮箱详情：${hunterInfo}
             dom.speechText = document.getElementById('dede-speech-text');
             if (!dom.container || !dom.robot) return;
 
-            // Restore position from localStorage
-            try {
-                var saved = localStorage.getItem('dede_position');
-                if (saved) {
-                    var pos = JSON.parse(saved);
-                    dom.container.style.left = pos.x + 'px';
-                    dom.container.style.top = pos.y + 'px';
-                }
-            } catch(e) {}
-
-            setupDrag();
             setupHooks();
+            resetIdleTimer();
 
-            // Welcome message after short delay
-            setTimeout(function() {
-                say('哈喽！我是<span class="highlight">德德</span>，您的智能情报助手 🤖');
-            }, 3000);
+            // Welcome
+            setTimeout(function() { say(lines.welcome, 4000); }, 2000);
         }
 
         function setState(s) {
-            DedeState.current = s;
+            state.current = s;
             dom.robot.className = 'dede';
             if (s === 'idle') dom.robot.classList.add('dede-idle');
             else if (s === 'warning') dom.robot.classList.add('dede-warning');
@@ -3112,72 +3160,94 @@ Hunter邮箱详情：${hunterInfo}
         function say(html, duration) {
             dom.speechText.innerHTML = html;
             dom.speech.classList.remove('hidden');
-            clearTimeout(DedeState.speechTimer);
-            DedeState.speechTimer = setTimeout(function() {
+            clearTimeout(state.speechTimer);
+            state.speechTimer = setTimeout(function() {
                 dom.speech.classList.add('hidden');
-            }, duration || 5000);
+            }, duration || 4000);
         }
+
+        function sayQuick(html) { say(html, 3000); }
 
         function hideSpeech() {
             dom.speech.classList.add('hidden');
-            clearTimeout(DedeState.speechTimer);
+            clearTimeout(state.speechTimer);
         }
 
-        // Click robot to dismiss speech
-        if (dom.robot) dom.robot.addEventListener('click', hideSpeech);
+        // Click Dede himself → cycle through personality lines
+        dom.robot && dom.robot.addEventListener('click', function(e) {
+            e.stopPropagation();
+            hideSpeech();
+            setTimeout(function() {
+                sayQuick(lines.self[selfIdx % lines.self.length]);
+                selfIdx++;
+            }, 100);
+        });
 
-        // ======== Drag (mouse + touch) ========
-        function setupDrag() {
-            var dragging = false, ox = 0, oy = 0;
-
-            function start(cx, cy) {
-                dragging = true;
-                ox = cx - dom.container.offsetLeft;
-                oy = cy - dom.container.offsetTop;
-                dom.container.style.transition = 'none';
-                dom.robot.classList.add('dede-dragging');
+        // ======== Section click detection ========
+        function getSectionId(el) {
+            while (el && el !== document.body) {
+                for (var i = 0; i < el.classList.length; i++) {
+                    var cls = el.classList[i];
+                    if (cls === 'dede-container' || cls === 'dede-speech' || cls === 'dede') return null;
+                }
+                if (el.id === 'tab-biz-btn') return 'tab-biz';
+                if (el.id === 'tab-recon-btn') return 'tab-recon';
+                if (el.id === 'settings-modal' || el.id === 'expand-modal') return null;
+                if (el.tagName === 'BUTTON' || el.tagName === 'A') {
+                    // Check if inside a section
+                    var parent = el;
+                    while (parent && parent !== document.body) {
+                        if (parent.id && parent.id.indexOf('sec-') === 0) return parent.id;
+                        parent = parent.parentElement;
+                    }
+                    // Check for specific buttons
+                    var txt = (el.textContent || '').trim();
+                    if (txt.indexOf('刷新') >= 0 || txt.indexOf('放大') >= 0) {
+                        var p = el.parentElement;
+                        while (p && p !== document.body) {
+                            if (p.id && p.id.indexOf('sec-') === 0) return 'btn-' + p.id.replace('sec-', '');
+                            p = p.parentElement;
+                        }
+                    }
+                    if (el.onclick && el.onclick.toString().indexOf('openSettings') >= 0) return 'settings';
+                    return null;
+                }
+                if (el.id && el.id.indexOf('sec-') === 0) return el.id;
+                el = el.parentElement;
             }
-
-            function move(cx, cy) {
-                if (!dragging) return;
-                var x = Math.max(0, Math.min(window.innerWidth - 100, cx - ox));
-                var y = Math.max(0, Math.min(window.innerHeight - 160, cy - oy));
-                dom.container.style.left = x + 'px';
-                dom.container.style.top = y + 'px';
-            }
-
-            function end() {
-                if (!dragging) return;
-                dragging = false;
-                dom.robot.classList.remove('dede-dragging');
-                dom.container.style.transition = '';
-                try {
-                    localStorage.setItem('dede_position', JSON.stringify({
-                        x: parseInt(dom.container.style.left) || 20,
-                        y: parseInt(dom.container.style.top) || 200
-                    }));
-                } catch(e) {}
-            }
-
-            dom.robot.addEventListener('mousedown', function(e) {
-                if (e.button !== 0) return;
-                start(e.clientX, e.clientY);
-                e.preventDefault();
-            });
-            document.addEventListener('mousemove', function(e) { move(e.clientX, e.clientY); });
-            document.addEventListener('mouseup', end);
-
-            dom.robot.addEventListener('touchstart', function(e) {
-                var t = e.touches[0];
-                start(t.clientX, t.clientY);
-            }, { passive: true });
-            document.addEventListener('touchmove', function(e) {
-                var t = e.touches[0];
-                move(t.clientX, t.clientY);
-            }, { passive: true });
-            document.addEventListener('touchend', end, { passive: true });
+            return null;
         }
 
+        function handleSectionClick(e) {
+            // Don't react to clicks on Dede himself
+            if (e.target.closest && e.target.closest('#dede-container')) return;
+            resetIdleTimer();
+            var sec = getSectionId(e.target);
+            if (!sec) return;
+            // Skip if currently processing or showing warning
+            if (state.current === 'processing' || state.current === 'warning') return;
+            var msg = lines[sec];
+            if (msg) { sayQuick(msg); }
+        }
+
+        document.addEventListener('click', handleSectionClick, true);
+
+        // ======== Idle timer ========
+        function resetIdleTimer() {
+            clearTimeout(state.idleTimer);
+            if (state.current === 'processing') return;
+            state.idleTimer = setTimeout(function() {
+                if (state.current === 'idle') {
+                    sayQuick(pick(lines.idle));
+                }
+            }, 45000);
+        }
+
+        // Reset idle on any user activity
+        document.addEventListener('scroll', resetIdleTimer, true);
+        document.addEventListener('keydown', resetIdleTimer, true);
+
+        // ======== API key check ========
         function isApiKeyMissing() {
             var el = document.getElementById('api-key-input');
             return !el || !el.value.trim();
@@ -3204,31 +3274,31 @@ Hunter邮箱详情：${hunterInfo}
                     // API key missing → warning
                     if (item.search && isApiKeyMissing()) {
                         setState('warning');
-                        say('嘟嘟！您忘记了密钥！请先在右上角填写。<br><span style="font-size:9px;color:#94a3b8;">德德提醒：还没填Key呢！</span>', 6000);
+                        say(lines.noKey, 5000);
                     }
 
                     // Processing state
                     if (item.search) {
                         setState('processing');
-                        say('正在扫描深层网络寻找线索...<br><span style="font-size:9px;color:#94a3b8;">德德正在全网情报搜索中</span>', 15000);
+                        say(pick(lines.processing), 15000);
                     }
 
                     var result = orig.apply(self, args);
 
-                    // If async → reset on completion
                     if (result && typeof result.then === 'function') {
                         return result.then(function(v) {
                             setState('idle');
-                            hideSpeech();
+                            sayQuick(pick(lines.done));
+                            resetIdleTimer();
                             return v;
                         }, function(err) {
                             setState('idle');
                             hideSpeech();
+                            resetIdleTimer();
                             throw err;
                         });
                     }
 
-                    // Sync: non-search functions reset after delay
                     if (!item.search) {
                         setTimeout(function() { setState('idle'); }, 3000);
                     }
