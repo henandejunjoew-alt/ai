@@ -83,6 +83,24 @@
         @keyframes dede-blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } 98% { transform: scaleY(0.1); } }
         .dede-idle .dede-eye { animation: dede-blink 4s ease-in-out infinite; }
 
+        /* Eye state: Sleep (no keys) - flat gray, no glow */
+        .dede-sleep .dede-eye { border-color: rgba(100,116,139,0.3); box-shadow: none; animation: none; }
+        .dede-sleep .dede-pupil { background: radial-gradient(circle, #64748b, #475569); box-shadow: none; }
+        .dede-sleep .dede-head { border-color: rgba(100,116,139,0.2); }
+        .dede-sleep .dede-panel-text { color: #64748b; border-color: rgba(100,116,139,0.2); text-shadow: none; }
+        .dede-sleep .dede-visor { background: rgba(100,116,139,0.1); }
+        .dede-sleep .dede-thought span { background: rgba(100,116,139,0.2); }
+        .dede-sleep .dede { animation: none; }
+
+        /* Eye state: DeepSeek only (no Tavily) - purple */
+        @keyframes dede-purple-glow { 0%, 100% { border-color: rgba(168,85,247,0.5); box-shadow: 0 0 12px rgba(168,85,247,0.2); } 50% { border-color: rgba(168,85,247,0.8); box-shadow: 0 0 20px rgba(168,85,247,0.4); } }
+        @keyframes dede-purple-pupil { 0%, 100% { background: radial-gradient(circle, #d8b4fe, #a855f7); box-shadow: 0 0 10px rgba(168,85,247,0.6); } 50% { background: radial-gradient(circle, #c084fc, #9333ea); box-shadow: 0 0 15px rgba(168,85,247,0.8); } }
+        .dede-deepseek .dede-eye { animation: dede-purple-glow 2s ease-in-out infinite; border-color: rgba(168,85,247,0.5); }
+        .dede-deepseek .dede-pupil { animation: dede-purple-pupil 2s ease-in-out infinite; }
+        .dede-deepseek .dede-head { border-color: rgba(168,85,247,0.3); }
+        .dede-deepseek .dede-panel-text { color: #a855f7; border-color: rgba(168,85,247,0.3); text-shadow: 0 0 8px rgba(168,85,247,0.4); }
+        .dede-deepseek .dede { animation: dede-float 3s ease-in-out infinite; }
+
         /* Eye state: Warning - orange flash */
         @keyframes dede-warning-glow { 0%, 100% { border-color: rgba(251,146,60,0.6); box-shadow: 0 0 15px rgba(251,146,60,0.3); } 50% { border-color: rgba(251,146,60,0.9); box-shadow: 0 0 25px rgba(251,146,60,0.6); } }
         @keyframes dede-warning-eye { 0%, 100% { background: radial-gradient(circle, #fdba74, #f97316); box-shadow: 0 0 15px rgba(249,115,22,0.9); } 50% { background: radial-gradient(circle, #f97316, #ea580c); box-shadow: 0 0 25px rgba(249,115,22,0.9); } }
@@ -102,14 +120,14 @@
         .dede-processing .dede-panel-text { color: #67e8f9; animation: dede-panel-pulse 0.8s ease-in-out infinite; border-color: rgba(6,182,212,0.4); }
         .dede-processing .dede { animation: none; }
 
-        /* Speech bubble */
-        .dede-speech { position: absolute; bottom: 100%; left: 40px; margin-bottom: 10px; z-index: 10000; min-width: 170px; max-width: 250px; pointer-events: none; }
-        .dede-speech:not(.hidden) { animation: dede-speech-in 0.3s ease-out; }
-        .dede-speech-content { background: rgba(15,23,42,0.95); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(56,189,248,0.25); border-radius: 12px; padding: 10px 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(6,182,212,0.08); position: relative; }
-        .dede-speech-arrow { position: absolute; top: 100%; left: 18px; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid rgba(15,23,42,0.95); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
-        .dede-speech-text { color: #e2e8f0; font-size: 11px; line-height: 1.5; display: block; text-align: center; }
+        /* Speech bubble — right-aligned above Dede, extends left into blank margin */
+        .dede-speech { position: absolute; bottom: 100%; right: 0; margin-bottom: 10px; z-index: 10000; width: auto; max-width: 150px; pointer-events: none; }
+        .dede-speech:not(.hidden) { animation: dede-speech-in 0.25s ease-out; }
+        .dede-speech-content { background: rgba(15,23,42,0.95); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(56,189,248,0.25); border-radius: 10px; padding: 7px 11px; box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(6,182,212,0.08); position: relative; }
+        .dede-speech-arrow { position: absolute; top: 100%; right: 36px; transform: none; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 7px solid rgba(15,23,42,0.95); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+        .dede-speech-text { color: #e2e8f0; font-size: 10px; line-height: 1.4; display: block; text-align: center; }
         .dede-speech-text .highlight { color: #22d3ee; }
-        @keyframes dede-speech-in { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: translateY(0); } }
+        @keyframes dede-speech-in { 0% { opacity: 0; transform: translateY(5px); } 100% { opacity: 1; transform: translateY(0); } }
 
         /* Idle pulsing thought dots */
         .dede-thought { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; }
@@ -117,6 +135,55 @@
         .dede-thought span:nth-child(2) { animation-delay: 0.3s; }
         .dede-thought span:nth-child(3) { animation-delay: 0.6s; }
         @keyframes dede-thought-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+        /* ======== 德德聊天面板 ======== */
+        .dede-chat-panel {
+            position: fixed;
+            left: max(100px, calc((100vw - 1536px) / 2 + 8px));
+            top: 50%;
+            transform: translateY(-50%);
+            width: 360px;
+            max-height: 560px;
+            background: rgba(15,23,42,0.97);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(56,189,248,0.25);
+            border-radius: 12px;
+            z-index: 9998;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.7), 0 0 30px rgba(6,182,212,0.06);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            overflow: hidden;
+        }
+        .dede-chat-panel.active { opacity: 1; pointer-events: auto; }
+        .dede-chat-hd { display: flex; align-items: center; gap: 8px; padding: 12px 14px 10px; border-bottom: 1px solid rgba(56,189,248,0.15); flex-shrink: 0; }
+        .dede-chat-title { color: #22d3ee; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-shadow: 0 0 12px rgba(6,182,212,0.3); margin-right: auto; }
+        .dede-chat-close { background: none; border: none; color: #64748b; font-size: 16px; cursor: pointer; padding: 0 4px; line-height: 1; transition: color 0.2s; flex-shrink: 0; }
+        .dede-chat-close:hover { color: #f87171; }
+        .dede-chat-msgs { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; min-height: 0; scrollbar-width: thin; scrollbar-color: rgba(56,189,248,0.2) transparent; }
+        .dede-chat-msgs::-webkit-scrollbar { width: 4px; }
+        .dede-chat-msgs::-webkit-scrollbar-track { background: transparent; }
+        .dede-chat-msgs::-webkit-scrollbar-thumb { background: rgba(56,189,248,0.2); border-radius: 4px; }
+        .dede-chat-msg { display: flex; flex-shrink: 0; }
+        .dede-chat-msg-ai { justify-content: flex-start; }
+        .dede-chat-msg-user { justify-content: flex-end; }
+        .dede-chat-bubble { max-width: 88%; padding: 8px 12px; border-radius: 10px; font-size: 11px; line-height: 1.5; word-break: break-word; }
+        .dede-chat-msg-ai .dede-chat-bubble { background: rgba(30,41,59,0.9); border: 1px solid rgba(56,189,248,0.2); color: #e2e8f0; border-top-left-radius: 2px; }
+        .dede-chat-msg-user .dede-chat-bubble { background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3); color: #67e8f9; border-bottom-right-radius: 2px; }
+        .dede-chat-loading .dede-chat-bubble { background: rgba(56,189,248,0.08); border-color: rgba(56,189,248,0.2); color: #94a3b8; }
+        .dede-chat-sources { margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(56,189,248,0.12); display: flex; flex-direction: column; gap: 3px; }
+        .dede-chat-source { color: #22d3ee; font-size: 9px; line-height: 1.3; text-decoration: underline; text-underline-offset: 2px; text-decoration-color: rgba(56,189,248,0.3); word-break: break-all; }
+        .dede-chat-source:hover { color: #67e8f9; }
+        .dede-chat-foot { display: flex; align-items: center; gap: 8px; padding: 10px 14px 12px; border-top: 1px solid rgba(56,189,248,0.15); flex-shrink: 0; }
+        .dede-chat-foot input { flex: 1; height: 36px; background: rgba(0,0,0,0.5) !important; border: 1px solid rgba(100,116,139,0.3) !important; border-radius: 6px; padding: 0 10px; color: #e2e8f0; font-size: 11px; outline: none; }
+        .dede-chat-foot input:focus { border-color: rgba(56,189,248,0.5) !important; }
+        .dede-chat-foot input::placeholder { color: #475569; }
+        .dede-chat-foot button { flex-shrink: 0; height: 36px; background: rgba(6,182,212,0.2); border: 1px solid rgba(6,182,212,0.35); border-radius: 6px; padding: 0 16px; color: #22d3ee; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; letter-spacing: 0.05em; }
+        .dede-chat-foot button:hover { background: rgba(6,182,212,0.35); border-color: rgba(6,182,212,0.5); }
+        .dede-chat-foot button:disabled { opacity: 0.4; cursor: not-allowed; }
 
         input, textarea, select {
             background: rgba(0,0,0,0.6) !important;
@@ -150,9 +217,16 @@
                         <a href="javascript:void(0)" onclick="scrollToSection('sec-feedback')" class="text-sm text-slate-400 hover:text-cyan-400 border border-transparent hover:border-cyan-500/30 px-3 py-2 rounded transition">反馈</a>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-[10px] text-slate-400 bg-black/40 px-2 py-1 rounded border border-white/10">deepseek</span>
-                    <input type="password" id="api-key-input" value="" class="h-8 w-36 text-[11px] tracking-wider px-2" autocomplete="off">
+                <div class="flex items-center gap-2 flex-wrap justify-end">
+                    <div class="flex items-center gap-1">
+                        <span class="text-[9px] text-slate-500 bg-black/40 px-1.5 py-0.5 rounded border border-white/10">DS</span>
+                        <input type="password" id="api-key-input" value="" class="h-7 w-28 text-[10px] tracking-wider px-1.5" autocomplete="off" placeholder="DeepSeek Key">
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <span class="text-[9px] text-slate-500 bg-black/40 px-1.5 py-0.5 rounded border border-white/10">TV</span>
+                        <input type="password" id="tavily-key-input" value="" class="h-7 w-28 text-[10px] tracking-wider px-1.5" autocomplete="off" placeholder="Tavily Key">
+                        <span class="text-[7px] text-slate-600 whitespace-nowrap">1000次/月</span>
+                    </div>
                     <button onclick="openSettings()" class="text-slate-400 hover:text-cyan-400 transition p-1.5 rounded border border-transparent hover:border-cyan-500/30" title="系统设置">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                     </button>
@@ -382,7 +456,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-29 10:27:54" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-29 15:59:34" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -399,19 +473,19 @@
     <div id="settings-modal" class="hidden fixed inset-0 z-[999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="relative max-w-md w-full bg-slate-900 rounded-xl border border-cyan-500/30 p-6">
             <button onclick="closeSettings()" class="absolute top-3 right-3 text-slate-400 hover:text-white text-xl leading-none w-8 h-8 flex items-center justify-center rounded hover:bg-slate-800 transition">&times;</button>
-            <h3 class="text-sm font-bold text-cyan-400 mb-5 tracking-widest">系统设置 / API 密钥</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="input-label">Tavily API Key</label>
-                    <input type="password" id="tavily-key-input" class="w-full h-9 text-xs px-3" placeholder="用于深度网络搜索">
-                    <p class="text-[9px] text-slate-500 mt-1">用于战略侦察阶段的深度网络搜索</p>
+            <h3 class="text-sm font-bold text-cyan-400 mb-5 tracking-widest">密钥管理</h3>
+            <div class="space-y-3">
+                <div class="bg-slate-800/50 border border-cyan-500/20 rounded-lg p-3">
+                    <p class="text-[11px] text-cyan-300"><span class="text-cyan-400 font-bold">①</span> DeepSeek API 密钥</p>
+                    <p class="text-[9px] text-slate-500 mt-1">AI 大脑 — 用于分析、推理、报告生成</p>
+                    <p class="text-[9px] text-slate-500">在右上角 <span class="text-cyan-400">DS</span> 输入框填写，自动保存至本地存储</p>
                 </div>
-                <div>
-                    <label class="input-label">Hunter.io API Key</label>
-                    <input type="password" id="hunter-key-input" class="w-full h-9 text-xs px-3" placeholder="用于域名邮箱挖掘">
-                    <p class="text-[9px] text-slate-500 mt-1">用于侦察阶段的域名邮箱模式挖掘</p>
+                <div class="bg-slate-800/50 border border-purple-500/20 rounded-lg p-3">
+                    <p class="text-[11px] text-purple-300"><span class="text-purple-400 font-bold">②</span> Tavily API 密钥</p>
+                    <p class="text-[9px] text-slate-500 mt-1">联网眼睛 — 用于实时搜索2026年最新情报</p>
+                    <p class="text-[9px] text-slate-500">在右上角 <span class="text-purple-400">TV</span> 输入框填写，自动保存至本地存储</p>
+                    <p class="text-[9px] text-emerald-400 mt-1">每月可免费搜索 1000 次</p>
                 </div>
-                <button onclick="saveSettings()" class="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white py-2.5 rounded text-xs font-bold transition tracking-widest border border-cyan-400/50">保存配置</button>
             </div>
         </div>
     </div>
@@ -422,15 +496,86 @@
         // ==========================================
         const AI_API_URL = "https://api.deepseek.com/v1/chat/completions";
         const AI_MODEL = "deepseek-chat";
+        // Tavily source whitelist: only official news and maritime/trade specialist sites
+        const TAVILY_WHITELIST = [
+            'reuters.com', 'bloomberg.com', 'lloydslist.com', 'marinetraffic.com',
+            'tradewindsnews.com', 'wsj.com', 'ft.com', 'ec.europa.eu',
+            'worldbank.org', 'imf.org', 'imo.org', 'splashed.com',
+            'hellenicshippingnews.com', 'porttechnology.org', 'container-news.com',
+            'supplychaindive.com', 'freightwaves.com', 'trade.gov',
+            'mofcom.gov.cn', 'gov.cn', 'bbc.com', 'bbc.co.uk',
+            'apnews.com', 'cnbc.com', 'economist.com', 'scmp.com',
+            'nih.gov', 'who.int', 'reutersagency.com', 'maritime-executive.com'
+        ];
+        // Domains to always exclude (social media, blogs, low-quality aggregators)
+        const TAVILY_BLACKLIST = [
+            'facebook.com', 'twitter.com', 'x.com', 'instagram.com', 'linkedin.com',
+            'tiktok.com', 'reddit.com', 'youtube.com', 'pinterest.com',
+            'blogspot.com', 'wordpress.com', 'medium.com', 'substack.com',
+            'tumblr.com', 'weibo.com', 'quora.com', 'wikipedia.org'
+        ];
         function getApiKey() { const el = document.getElementById('api-key-input'); return el ? el.value.trim() : ''; }
+        function getTavilyKey() { const el = document.getElementById('tavily-key-input'); return el ? el.value.trim() : ''; }
+        function isDsKeyMissing() { var k = getApiKey(); return !k; }
+        function isTavilyKeyMissing() { var k = getTavilyKey(); return !k; }
 
         let pendingPossibilities = [];
         let pendingEntityName = '';
 
         function getDatePrefix() {
             const now = new Date();
-            return '现在是' + now.getFullYear() + '年' + (now.getMonth()+1) + '月' + now.getDate() + '日。';
+            return '【日期锚定】今天是 ' + now.getFullYear() + ' 年 ' + (now.getMonth()+1) + ' 月 ' + now.getDate() + ' 日。所有信息必须基于当前日期判断时效性。';
         }
+
+        // ==========================================
+        // Brain: DeepSeek 统一分析引擎
+        // 所有模块通过 Brain.ask() 调用 DeepSeek，
+        // 自动处理 JSON 清洗、解析和错误重试。
+        // ==========================================
+        const Brain = {
+            // 核心方法：向 DeepSeek 发送分析请求，返回结构化 JSON
+            async ask(prompt, temperature) {
+                temperature = temperature || 0.3;
+                var authKey = getApiKey();
+                if (!authKey) throw new Error('DS_KEY_MISSING');
+
+                var response = await fetch(AI_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authKey },
+                    body: JSON.stringify({
+                        model: AI_MODEL,
+                        messages: [{ role: 'user', content: prompt }],
+                        temperature: temperature
+                    })
+                });
+                if (!response.ok) throw new Error('API_HTTP_' + response.status);
+
+                var data = await response.json();
+                var rawContent = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+                if (!rawContent) throw new Error('EMPTY_RESPONSE');
+
+                // 清洗：移除 Markdown 代码块标记，提取 JSON
+                var cleaned = rawContent.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+                var jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error('JSON_PARSE_FAIL: No JSON object found in response');
+
+                return JSON.parse(jsonMatch[0]);
+            },
+
+            // 快速分析：Eyes 获取数据 → Brain 分析 → 返回结果
+            async eyesAndBrain(searchQuery, promptBuilder, temperature) {
+                var searchResult = await tavilySearch(searchQuery);
+                var searchContext = '';
+                if (searchResult && searchResult.results && searchResult.results.length > 0) {
+                    searchContext = searchResult.results.slice(0, 15).map(function(r) {
+                        var snippet = (r.content || '').slice(0, 200);
+                        return '- [' + r.title + '](' + r.url + ') ' + snippet;
+                    }).join('\n');
+                }
+                var fullPrompt = promptBuilder(searchContext);
+                return await Brain.ask(fullPrompt, temperature);
+            }
+        };
 
         function setTransLang(lang) {
             document.getElementById('trans-custom-lang').value = lang;
@@ -450,9 +595,18 @@
         document.addEventListener('DOMContentLoaded', function() {
             const keyInput = document.getElementById('api-key-input');
             if (keyInput) {
-                keyInput.value = sessionStorage.getItem('nexus_api_key') || '';
+                keyInput.value = localStorage.getItem('nexus_api_key') || '';
                 keyInput.addEventListener('input', function() {
-                    sessionStorage.setItem('nexus_api_key', this.value);
+                    localStorage.setItem('nexus_api_key', this.value);
+                    if (typeof window.__dedeKeyCheck === 'function') window.__dedeKeyCheck();
+                });
+            }
+            const tavilyInput = document.getElementById('tavily-key-input');
+            if (tavilyInput) {
+                tavilyInput.value = localStorage.getItem('tavily_api_key') || '';
+                tavilyInput.addEventListener('input', function() {
+                    localStorage.setItem('tavily_api_key', this.value);
+                    if (typeof window.__dedeKeyCheck === 'function') window.__dedeKeyCheck();
                 });
             }
             const cityInput = document.getElementById('city-time-input');
@@ -469,6 +623,18 @@
             loadCachedGeoAlerts();
             // 加载历史汇率折线图
             fetchHistoricalRates();
+            // 诊断：页面加载后测试 Tavily API（如有密钥）
+            setTimeout(function() {
+                var tk = getTavilyKey();
+                if (tk) {
+                    tavilySearch('crane export 2026').then(function(r) {
+                        if (r && r.results) console.log('[诊断] Tavily API 测试通过,', r.results.length, '条结果');
+                        else console.log('[诊断] Tavily API 测试返回空');
+                    });
+                } else {
+                    console.log('[诊断] Tavily 密钥为空，跳过测试');
+                }
+            }, 3000);
         });
 
         // ==========================================
@@ -685,24 +851,11 @@
                 </div>`;
 
             try {
-                const metaResponse = await fetch(AI_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authKey}` },
-                    body: JSON.stringify({
-                        model: AI_MODEL,
-                        messages: [{"role": "user", "content": `${getDatePrefix()}根据公司名称"${name}"，推测其可能的所在地（国家、城市）和所属行业。如果存在多个同名公司分布在不同国家或不同行业，请全部列出。
+                const metaPrompt = `${getDatePrefix()}根据公司名称"${name}"，推测其可能的所在地（国家、城市）和所属行业。如果存在多个同名公司分布在不同国家或不同行业，请全部列出。
 返回纯JSON格式（不要 markdown 标记）：
 {"possibilities": [{"country": "中国", "city": "上海", "industry": "重型机械"}, ...]}
-至少返回一个结果。如果无法确定，country 设为"未知"。`}],
-                        temperature: 0
-                    })
-                });
-                if (!metaResponse.ok) throw new Error("API 异常");
-                const metaData = await metaResponse.json();
-                let rawMeta = metaData.choices[0].message.content.trim();
-                const metaJson = rawMeta.match(/\{[\s\S]*\}/);
-                if (!metaJson) throw new Error("JSON 解析失败");
-                const metaResult = JSON.parse(metaJson[0]);
+至少返回一个结果。如果无法确定，country 设为"未知"。`;
+                const metaResult = await Brain.ask(metaPrompt, 0);
                 const possibilities = metaResult.possibilities || [];
 
                 if (possibilities.length === 0) {
@@ -754,57 +907,76 @@
             diagResult.innerHTML = `
                 <div class="flex flex-col items-center justify-center h-full text-cyan-400 text-xs animate-pulse">
                     <div class="w-12 h-12 border-4 border-slate-800 border-t-cyan-500 rounded-full animate-spin mb-6 shadow-[0_0_15px_rgba(6,182,212,0.5)]"></div>
-                    <p class="mb-2 tracking-widest text-sm">正在进行深度商业分析...</p>
-                    <p class="text-[10px] text-slate-500">分析主营业务、行业地位、竞争对手、财务状况...</p>
+                    <p class="mb-2 tracking-widest text-sm">正在搜集实时情报...</p>
+                    <p class="text-[10px] text-slate-500">Tavily 实时搜索 → DeepSeek 深度分析</p>
                 </div>`;
 
-            const promptText = `
-                ${getDatePrefix()}
-                你是一个拥有20年经验的跨国大客户销售总监和企业背调专家。
-                请对实体"${name}"（${country || '未知'}，${city || '未知'}，${industry || '未知'}）进行深度的商业分析和背调分析。
-
-                【分析维度】：
-                1. 主营业务：该实体主要从事什么业务，B2B还是B2C
-                2. 行业地位：是行业领头羊、快速成长的初创公司，还是面临瓶颈的老牌企业
-                3. 竞争对手：谁是他们的直接竞争对手，他们目前可能在用谁家的产品或服务
-                4. 财务健康：公司的盈利能力和现金流状况如何（根据已知信息推测）
-                5. 企业文化：公司偏好保守稳健还是激进创新
-                6. 文化背景：对方公司所在地区的宗教信仰、使用语言
-
-                【核心规则】：
-                1. 验真逻辑：如果用户输入的是类似"cherry"、"123"、"aaa"等毫无意义的词汇，或者完全不足以支撑分析，请将 is_valid 设为 false。
-                2. 如果数据有效，请给出长篇幅的深度分析。
-
-                【必须严格返回以下JSON格式（不要 markdown 标记）】：
-                {
-                    "is_valid": true,
-                    "tags": ["政府背景", "高外汇风险", "价格敏感"],
-                    "dimensions": {
-                        "business": "主营业务与商业模式分析（至少100字）",
-                        "position": "行业地位与竞争对手分析（至少100字）",
-                        "finance": "财务健康与企业文化分析（至少100字）",
-                        "culture": "宗教信仰与语言文化背景（至少80字）"
-                    },
-                    "risk": "低风险/中风险/高风险",
-                    "suggestion": "商业合作建议（50字以内）",
-                    "conclusion": "一句话最终总结"
+            // Step 1: Tavily Search for real data
+            var searchContext = '';
+            var sourceLinks = '';
+            try {
+                const bizQueries = [
+                    '"' + name + '" company profile ' + (industry || ''),
+                    '"' + name + '" ' + (country || '') + ' crane heavy machinery',
+                    '"' + name + '" financial risk import export 2026',
+                ];
+                const allResults = [];
+                for (const q of bizQueries) {
+                    const res = await tavilySearch(q);
+                    if (res && res.results) allResults.push(...res.results);
                 }
+                searchContext = allResults.slice(0, 20).map(function(r) {
+                    return '- [' + r.title + '](' + r.url + ') ' + (r.content || '').slice(0, 250);
+                }).join('\n');
+                sourceLinks = allResults.slice(0, 8).map(function(r) {
+                    return '<a href="' + (r.url || '').replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" class="text-[9px] text-cyan-500 hover:text-cyan-300 underline underline-offset-2 truncate block max-w-full">' + (r.title || r.url).slice(0, 60) + '</a>';
+                }).join('');
+            } catch(e) {
+                console.warn('[背调] Tavily搜索异常:', e.message);
+            }
 
-                重要：禁止输出评分、分数或百分比数值。只做文字分析。
-            `;
+            const promptText = `
+                    ${getDatePrefix()}
+                    以下是从Tavily实时搜索到的关于"${name}"的商业情报摘要，请基于这些真实数据进行分析，不要编造：
+
+                    ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识分析并注明数据局限性）'}
+
+                    你是一个拥有20年经验的跨国大客户销售总监和企业背调专家。
+                    请对实体"${name}"（${country || '未知'}，${city || '未知'}，${industry || '未知'}）进行深度的商业分析和背调分析。
+
+                    【分析维度】：
+                    1. 主营业务：该实体主要从事什么业务，B2B还是B2C
+                    2. 行业地位：是行业领头羊、快速成长的初创公司，还是面临瓶颈的老牌企业
+                    3. 竞争对手：谁是他们的直接竞争对手，他们目前可能在用谁家的产品或服务
+                    4. 财务健康：公司的盈利能力和现金流状况如何（根据已知信息推测）
+                    5. 企业文化：公司偏好保守稳健还是激进创新
+                    6. 文化背景：对方公司所在地区的宗教信仰、使用语言
+
+                    【核心规则】：
+                    1. 验真逻辑：如果用户输入的是类似"cherry"、"123"、"aaa"等毫无意义的词汇，或者完全不足以支撑分析，请将 is_valid 设为 false。
+                    2. 如果数据有效，请给出长篇幅的深度分析。
+                    3. 【自我怀疑机制】如果搜索到的信息中存在明显矛盾或逻辑极其反常的断言，请在结论中标注 [存疑] 并说明矛盾点。
+
+                    【必须严格返回以下JSON格式（不要 markdown 标记）】：
+                    {
+                        "is_valid": true,
+                        "tags": ["政府背景", "高外汇风险", "价格敏感"],
+                        "dimensions": {
+                            "business": "主营业务与商业模式分析（至少100字）",
+                            "position": "行业地位与竞争对手分析（至少100字）",
+                            "finance": "财务健康与企业文化分析（至少100字）",
+                            "culture": "宗教信仰与语言文化背景（至少80字）"
+                        },
+                        "risk": "低风险/中风险/高风险",
+                        "suggestion": "商业合作建议（50字以内）",
+                        "conclusion": "一句话最终总结"
+                    }
+
+                    重要：禁止输出评分、分数或百分比数值。只做文字分析。
+                `;
 
             try {
-                const response = await fetch(AI_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authKey}` },
-                    body: JSON.stringify({ model: AI_MODEL, messages: [{"role": "user", "content": promptText}], temperature: 0.3 })
-                });
-                if (!response.ok) throw new Error("API 异常");
-                const data = await response.json();
-                let rawContent = data.choices[0].message.content.trim();
-                const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-                if (!jsonMatch) throw new Error("JSON 解析失败");
-                const aiResult = JSON.parse(jsonMatch[0]);
+                const aiResult = await Brain.ask(promptText, 0.3);
 
                 if (aiResult.is_valid === false) {
                     diagResult.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-amber-500"><p class="font-bold tracking-widest">数据无效</p><p class="text-xs text-slate-400 mt-2 text-center max-w-sm">' + (aiResult.conclusion || '') + '</p></div>';
@@ -855,6 +1027,7 @@
                             <p class="text-cyan-400 font-bold text-xs tracking-wide">合作建议：${aiResult.suggestion || ''}</p>
                             <p class="text-slate-300 text-[11px] italic">${aiResult.conclusion || ''}</p>
                         </div>
+                        ${sourceLinks ? '<div class="shrink-0 pt-3 mt-2 border-t border-slate-700/50"><p class="text-[9px] text-slate-600 mb-1 tracking-wider">数据源（Tavily）</p><div class="flex flex-wrap gap-x-3 gap-y-0.5">' + sourceLinks + '</div></div>' : ''}
                     </div>`;
             } catch (error) {
                 console.error(error);
@@ -878,40 +1051,110 @@
             }
         }
 
+        var _geoAlertsData = [];
+
         function renderGeoAlerts(alerts, updateTime) {
             const container = document.getElementById('geo-alert-container');
+            _geoAlertsData = alerts || [];
             if (!alerts || alerts.length === 0) {
                 container.innerHTML = '<div class="text-xs text-slate-500 py-4 text-center">暂无预警信息</div>';
                 return;
             }
-            container.innerHTML = alerts.map(a => {
+            container.innerHTML = alerts.map((a, idx) => {
                 const level = a.level === 'critical' ? 'red' : (a.level === 'warning' ? 'amber' : 'blue');
+                const sourceUrl = a.source || '';
+                const unverifiedBadge = a.unverified ? '<span class="text-[9px] text-rose-400 font-bold border border-rose-500/40 px-1.5 py-0.5 rounded ml-2">待核实</span>' : '';
                 return `<div class="bg-black/50 p-3 rounded border border-${level}-500/30 border-l-4 border-l-${level}-500">
                     <div class="flex justify-between items-start mb-1">
-                        <p class="font-bold text-${level}-200">${a.title}</p>
-                        ${a.date ? '<span class="text-[9px] text-slate-500 whitespace-nowrap ml-2">' + a.date + '</span>' : ''}
+                        <p class="font-bold text-${level}-200">${a.title}${unverifiedBadge}</p>
+                        ${a.date ? '<span class="text-[9px] text-slate-500 whitespace-nowrap ml-2 flex-shrink-0">' + a.date + '</span>' : ''}
                     </div>
                     <p class="text-slate-400 text-[10px] leading-relaxed">${a.detail}</p>
+                    <div class="flex items-center gap-2 mt-2">
+                        ${sourceUrl ? '<a href="' + sourceUrl.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" class="text-[9px] text-cyan-500 hover:text-cyan-300 underline underline-offset-2 decoration-cyan-500/30">来源</a>' : ''}
+                        <button onclick="verifyGeoAlert(${idx}, this)" class="text-[9px] border border-slate-600/50 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/30 px-2 py-0.5 rounded transition">核实</button>
+                        <span class="verify-result text-[9px]"></span>
+                    </div>
                 </div>`;
             }).join('');
+        }
+
+        async function verifyGeoAlert(idx, btnEl) {
+            var a = _geoAlertsData[idx];
+            if (!a) return;
+            btnEl.disabled = true;
+            btnEl.innerText = '核实中...';
+            var authKey = getApiKey();
+            if (!authKey) { btnEl.innerText = '需 API Key'; btnEl.disabled = false; return; }
+
+            try {
+                // Tavily Search for verification
+                var verifyQ = a.title + ' ' + (a.detail || '').slice(0, 100) + ' 2026';
+                var searchRes = await tavilySearch(verifyQ);
+                var searchCtx = '';
+                if (searchRes && searchRes.results && searchRes.results.length > 0) {
+                    searchCtx = searchRes.results.slice(0, 5).map(function(r) {
+                        return '- [' + r.title + '](' + r.url + ') ' + (r.content || '').slice(0, 200);
+                    }).join('\n');
+                }
+
+                var prompt = '你是一个新闻核查员，专门核查地缘政治新闻的真实性和时效性。\n\n' +
+                    '【日期锚定】今天是 2026 年 4 月 29 日。所有事件必须基于当前日期判断时效性。\n\n' +
+                    '请严格核实以下信息：\n标题：' + a.title + '\n内容：' + a.detail + '\n发布日期：' + (a.date || '未知') + '\n\n以下是从Tavily实时搜索到的相关结果：\n' + (searchCtx || '无搜索结果') + '\n\n' +
+                    '【自我怀疑机制】如果该消息声称的事件极其反常（如战争爆发、政策剧变），而搜索结果中缺乏多个权威来源证实，请判定为 unverified。\n\n' +
+                    '返回纯JSON：{"status":"verified","reason":"简短原因（20字）","source":"来源网址"} 或 {"status":"unverified","reason":"..."} 或 {"status":"zombie","reason":"此新闻是X年前的旧闻被重新传播"}。verified=已核实为最新真实新闻，unverified=无法找到官方来源证实，zombie=过时旧闻被重新翻出。';
+                var result = await Brain.ask(prompt, 0.3);
+                var badge = '';
+                if (result.status === 'verified') badge = '<span class="text-emerald-400 font-bold">[已核实]</span>';
+                else if (result.status === 'zombie') badge = '<span class="text-rose-400 font-bold">[旧闻复活]</span>';
+                else badge = '<span class="text-amber-400 font-bold">[无法核实]</span>';
+                var parent = btnEl.parentElement;
+                parent.innerHTML = badge + ' <span class="text-slate-500">' + (result.reason || '') + '</span>';
+            } catch(e) {
+                btnEl.disabled = false;
+                btnEl.innerText = '核实';
+            }
         }
 
         async function refreshGeoAlert() {
             const authKey = getApiKey();
             if (!authKey) { alert("未检测到 API 密钥，请在顶部输入。"); return; }
             const container = document.getElementById('geo-alert-container');
-            container.innerHTML = '<div class="text-xs text-slate-500 animate-pulse py-6 text-center">正在获取最新预警...</div>';
+            container.innerHTML = '<div class="text-xs text-slate-500 animate-pulse py-6 text-center">正在搜索最新地缘情报...</div>';
 
             try {
-                const response = await fetch(AI_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authKey}` },
-                    body: JSON.stringify({
-                        model: AI_MODEL,
-                        messages: [{"role": "user", "content": `你是一个地缘政治与物流风险分析师，专门服务起重机出口行业。
-${getDatePrefix()}
-请提供最近5天内全球范围内对起重机/重型机械出口有影响的地缘冲突事件和货运物流预警，最多5条。
-每条都必须包含事件发生的具体日期（以北京时间为准）。
+                // Step 1: Tavily Search for recent geopolitical events affecting crane exports
+                const geoQueries = [
+                    'crane export shipping disruption 2026',
+                    'geopolitical risk heavy machinery import tariff 2026',
+                    'port congestion freight rate crane equipment 2026',
+                    'Red Sea Suez Canal shipping crane delay 2026',
+                    'trade war sanctions heavy equipment crane 2026'
+                ];
+                const allResults = [];
+                for (const q of geoQueries) {
+                    const res = await tavilySearch(q);
+                    if (res && res.results) allResults.push(...res.results);
+                    if (allResults.length >= 20) break;
+                }
+                const searchContext = allResults.slice(0, 20).map(function(r) {
+                    return '- [' + r.title + '](' + r.url + ') ' + (r.content || '').slice(0, 200);
+                }).join('\n');
+
+                // Step 2: DeepSeek analysis with real search data
+                const geoPrompt = `你是一个地缘政治与物流风险分析师，专门服务起重机出口行业。
+
+【日期锚定】今天是 2026 年 4 月 29 日。所有事件必须基于当前日期判断时效性。
+
+以下是从Tavily实时搜索到的近期相关新闻摘要（仅限权威新闻源和海运专业网站），请基于这些真实数据进行分析，不要编造：
+
+${searchContext || '（暂未搜索到相关新闻，请基于最新常识回答）'}
+
+【自我怀疑机制】如果你抓到的消息逻辑极其反常（如全球性战争、完全颠覆性的政策突变），请在回答前进行自我怀疑，并在该条目的 detail 末尾标注 [待核实]。
+
+请提取最近7天内全球范围内对起重机/重型机械出口有真实影响的地缘冲突事件和货运物流预警。
+最多5条，每条必须包含具体日期和来源URL。
+
 返回纯JSON格式（不要 markdown 标记）：
 {
     "alerts": [
@@ -919,21 +1162,43 @@ ${getDatePrefix()}
             "level": "critical",
             "title": "事件标题",
             "date": "2026-04-22",
-            "detail": "事件描述及对起重机出口的影响分析（50字以内）"
+            "detail": "事件描述及对起重机出口的影响分析（50字以内）",
+            "source": "https://..."
         }
     ]
 }
-注意：level 为 "critical"（严重）或 "warning"（警告）或 "info"（一般）。`}],
-                        temperature: 0.5
-                    })
-                });
-                if (!response.ok) throw new Error("API 异常");
-                const data = await response.json();
-                let rawContent = data.choices[0].message.content.trim();
-                const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-                if (!jsonMatch) throw new Error("JSON 解析失败");
-                const result = JSON.parse(jsonMatch[0]);
-                const alerts = result.alerts || [];
+注意：level 为 "critical"（严重）或 "warning"（警告）或 "info"（一般）。`;
+                const geoResult = await Brain.ask(geoPrompt, 0.3);
+                const alerts = (geoResult && geoResult.alerts) || [];
+
+                // Step 3: Cross-verification — for critical alerts, do a second Tavily search
+                for (var vi = 0; vi < alerts.length; vi++) {
+                    if (alerts[vi].level === 'critical' && alerts[vi].title) {
+                        try {
+                            var verifyQ = alerts[vi].title + ' 2026 authoritative source';
+                            var verifyRes = await tavilySearch(verifyQ, { max_results: 5 });
+                            var confirmed = false;
+                            if (verifyRes && verifyRes.results) {
+                                for (var vj = 0; vj < verifyRes.results.length; vj++) {
+                                    var vu = verifyRes.results[vj].url || '';
+                                    for (var vk = 0; vk < TAVILY_WHITELIST.length; vk++) {
+                                        if (vu.indexOf(TAVILY_WHITELIST[vk]) >= 0) {
+                                            confirmed = true;
+                                            break;
+                                        }
+                                    }
+                                    if (confirmed) break;
+                                }
+                            }
+                            if (!confirmed) {
+                                alerts[vi].detail += ' [待核实：单一信源，缺乏权威交叉验证]';
+                                alerts[vi].unverified = true;
+                            }
+                        } catch(e) {
+                            console.warn('[交叉验证] 验证异常:', e.message);
+                        }
+                    }
+                }
 
                 // 持久化到 localStorage
                 localStorage.setItem('geo_alerts_cache', JSON.stringify({
@@ -1024,18 +1289,36 @@ ${getDatePrefix()}
             diagResult.innerHTML = `
                 <div class="flex flex-col items-center justify-center h-full text-amber-400 text-xs animate-pulse">
                     <div class="w-12 h-12 border-4 border-slate-800 border-t-amber-500 rounded-full animate-spin mb-6 shadow-[0_0_15px_rgba(245,158,11,0.5)]"></div>
-                    <p class="mb-2 tracking-widest text-sm">正在分析地区风险...</p>
-                    <p class="text-[10px] text-slate-500">评估政治、经济、社会、法律、环境五大维度...</p>
+                    <p class="mb-2 tracking-widest text-sm">正在搜集实时情报...</p>
+                    <p class="text-[10px] text-slate-500">Tavily 实时搜索 → DeepSeek 风险分析</p>
                 </div>`;
 
             try {
-                const response = await fetch(AI_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authKey}` },
-                    body: JSON.stringify({
-                        model: AI_MODEL,
-                        messages: [{"role": "user", "content": `你是一个地缘政治与经济风险分析师，专门服务起重机出口行业。
+                // Step 1: Tavily Search for real country risk data
+                const countryQueries = [
+                    country + ' crane heavy machinery import tariff 2026',
+                    country + ' political risk economic outlook 2026',
+                    country + ' port infrastructure logistics risk 2026',
+                    country + ' trade sanctions export regulation 2026',
+                ];
+                const allResults = [];
+                for (const q of countryQueries) {
+                    const res = await tavilySearch(q);
+                    if (res && res.results) allResults.push(...res.results);
+                }
+                const searchContext = allResults.slice(0, 20).map(function(r) {
+                    return '- [' + r.title + '](' + r.url + ') ' + (r.content || '').slice(0, 250);
+                }).join('\n');
+                var countrySourceLinks = allResults.slice(0, 8).map(function(r) {
+                    return '<a href="' + (r.url || '').replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" class="text-[9px] text-cyan-500 hover:text-cyan-300 underline underline-offset-2 truncate block max-w-full">' + (r.title || r.url).slice(0, 60) + '</a>';
+                }).join('');
+
+                const response = await Brain.ask(`你是一个地缘政治与经济风险分析师，专门服务起重机出口行业。
 ${getDatePrefix()}
+以下是从Tavily实时搜索到的关于"${country}"的情报摘要，请基于这些真实数据进行分析，不要编造：
+
+${searchContext || '（暂未搜索到相关公开信息，请基于已知知识分析并注明数据局限性）'}
+
 请对目标地区/国家"${country}"进行以下5个维度的风险分析。要求每个维度至少150字的深度分析。
 
 1. 政治风险：政局稳定性、政策连续性、政府管控手段（如断网、宵禁等）
@@ -1043,6 +1326,8 @@ ${getDatePrefix()}
 3. 社会与通信风险：互联网基础设施、主要沟通工具、商务礼仪与时差
 4. 法律与合规风险：贸易壁垒、劳动法与合同法
 5. 环境与地理风险：物流基建、自然灾害
+
+【自我怀疑机制】如果搜索到的信息中存在明显矛盾或逻辑极其反常的断言，请在对应维度的分析末尾标注 [存疑]。
 
 返回纯JSON格式（不要 markdown 标记）：
 {
@@ -1055,16 +1340,9 @@ ${getDatePrefix()}
         "environmental": {"analysis": "环境与地理风险分析", "risk_level": "高/中/低"}
     },
     "conclusion": "一句话总结"
-}`}],
-                        temperature: 0.3
-                    })
-                });
-                if (!response.ok) throw new Error("API 异常");
-                const data = await response.json();
-                let rawContent = data.choices[0].message.content.trim();
-                const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-                if (!jsonMatch) throw new Error("JSON 解析失败");
-                const result = JSON.parse(jsonMatch[0]);
+}`, 0.3);
+
+                const result = response;
 
                 if (result.is_valid === false) {
                     diagResult.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-amber-500"><p class="font-bold">无法分析该地区</p></div>';
@@ -1119,6 +1397,7 @@ ${getDatePrefix()}
                         <div class="shrink-0 pt-4 mt-2 border-t border-slate-700">
                             <p class="text-slate-300 text-[11px] italic">${result.conclusion || ''}</p>
                         </div>
+                        ${countrySourceLinks ? '<div class="shrink-0 pt-3 border-t border-slate-700/50"><p class="text-[9px] text-slate-600 mb-1 tracking-wider">数据源（Tavily）</p><div class="flex flex-wrap gap-x-3 gap-y-0.5">' + countrySourceLinks + '</div></div>' : ''}
                     </div>`;
             } catch (error) {
                 console.error(error);
@@ -1251,18 +1530,9 @@ ${getDatePrefix()}
         // ==========================================
         function openSettings() {
             document.getElementById('settings-modal').classList.remove('hidden');
-            document.getElementById('tavily-key-input').value = localStorage.getItem('tavily_api_key') || '';
-            document.getElementById('hunter-key-input').value = localStorage.getItem('hunter_api_key') || '';
         }
         function closeSettings() {
             document.getElementById('settings-modal').classList.add('hidden');
-        }
-        function saveSettings() {
-            const tk = document.getElementById('tavily-key-input').value.trim();
-            const hk = document.getElementById('hunter-key-input').value.trim();
-            if (tk) localStorage.setItem('tavily_api_key', tk);
-            if (hk) localStorage.setItem('hunter_api_key', hk);
-            closeSettings();
         }
 
         // ==========================================
@@ -1517,7 +1787,7 @@ ${getDatePrefix()}
             'spokeo', 'whitepages', '411.com', 'truepeoplesearch',
             'beenverified', 'intelius', 'peekyou', 'pipl',
             'zabasearch', 'mycandidate', 'privateeye', 'instantcheckmate',
-            'tavily.com' // 排除Tavily聚合页本身
+            // Tavily/搜索引擎结果
         ];
 
         function isBlacklistedDomain(url) {
@@ -1573,7 +1843,7 @@ ${getDatePrefix()}
             // 70: Instagram
             if (u.includes('instagram.com') || label.includes('instagram')) return 70;
             // 60: 公司官网（非社交平台）
-            if (!/(linkedin|facebook|instagram|twitter|youtube|whatsapp|tavily)/.test(u)) {
+            if (!/(linkedin|facebook|instagram|twitter|youtube|whatsapp)/.test(u)) {
                 try {
                     const hostname = new URL(url).hostname.replace('www.', '');
                     if (hostname.includes('.') && !hostname.includes('google') && !hostname.includes('blogspot')) return 60;
@@ -1581,8 +1851,8 @@ ${getDatePrefix()}
             }
             // 50: WhatsApp
             if (u.includes('wa.me') || u.includes('whatsapp.com') || label.includes('whatsapp')) return 50;
-            // 5: Tavily 聚合
-            if (u.includes('tavily.com')) return 5;
+            // 5: 搜索结果聚合
+            // (fallback)
             return 10;
         }
 
@@ -1715,7 +1985,6 @@ ${getDatePrefix()}
                 const hostname = new URL(url).hostname.replace('www.', '');
                 if (hostname.includes('.') && !/(linkedin|facebook|instagram|google|blogspot|twitter|youtube)/.test(hostname)) return '公司网站';
             } catch(e) {}
-            if (u.includes('tavily.com')) return '搜索结果';
             return '其他来源';
         }
 
@@ -2049,45 +2318,85 @@ ${getDatePrefix()}
         }
 
         // ==========================================
-        // 执行单次 Tavily 搜索
+        // Tavily Search API
         // ==========================================
-        async function tavilySearch(apiKey, query) {
+        async function tavilySearch(query, opts) {
             if (!query || query.length < 3) return null;
-            console.log('[侦察] Tavily 并行查询:', query);
+            var apiKey = getTavilyKey();
+            if (!apiKey) {
+                console.warn('[Tavily] 密钥为空');
+                return null;
+            }
+            console.log('[Tavily] 搜索:', query);
             try {
-                const resp = await fetch('https://api.tavily.com/search', {
+                var body = {
+                    api_key: apiKey,
+                    query: query + ' after:2026-01-01',
+                    search_depth: 'advanced',
+                    max_results: (opts && opts.max_results) || 5,
+                    include_raw_content: true
+                };
+                // Domain whitelist: use custom if provided, otherwise default
+                if (opts && opts.include_domains) {
+                    body.include_domains = opts.include_domains;
+                } else {
+                    body.include_domains = TAVILY_WHITELIST;
+                }
+                // Always exclude social media and blogs
+                body.exclude_domains = TAVILY_BLACKLIST;
+                if (opts && opts.exclude_domains) {
+                    body.exclude_domains = body.exclude_domains.concat(opts.exclude_domains);
+                }
+                var resp = await fetch('https://api.tavily.com/search', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ api_key: apiKey, query, search_depth: 'advanced', max_results: 5, include_raw_content: true })
+                    body: JSON.stringify(body)
                 });
                 if (!resp.ok) {
-                    const errBody = await resp.text().catch(() => '');
-                    console.warn('[侦察] Tavily 子查询失败:', query, resp.status, errBody.slice(0, 100));
+                    var errBody = '';
+                    try { errBody = await resp.text(); } catch(e) {}
+                    console.error('[Tavily API ERROR] HTTP', resp.status, errBody.slice(0, 500));
+                    localStorage.setItem('_lastTavilyError', 'HTTP ' + resp.status + '\n' + errBody.slice(0, 500));
+                    if (typeof window.__dedeTavilyError === 'function') {
+                        window.__dedeTavilyError(resp.status, errBody.slice(0, 200));
+                    }
                     return null;
                 }
-                return await resp.json();
+                const data = await resp.json();
+                var results = (data.results || []).map(function(item) {
+                    return {
+                        title: item.title || '',
+                        content: item.content || '',
+                        raw_content: item.raw_content || '',
+                        url: item.url || '',
+                        published_date: item.published_date || ''
+                    };
+                });
+                console.log('[Tavily] 结果:', results.length, '条');
+                localStorage.removeItem('_lastTavilyError');
+                return { results: results, answer: data.answer || '' };
             } catch (e) {
-                console.warn('[侦察] Tavily 子查询异常:', query, e.message);
+                console.warn('[Tavily] 搜索异常:', query, e.message);
                 return null;
             }
         }
 
         // ==========================================
-        // Accio-Killer: 交互式侦察引擎（Tavily+Hunter+DeepSeek）
+        // Accio-Killer: 交互式侦察引擎（Tavily + DeepSeek）
         // ==========================================
         const RECON_STATE = {
             phase: 'idle', name: '', company: '', region: '', industry: '',
-            tavilyKey: '', hunterKey: '', authKey: '',
+            authKey: '',
             regionCfg: null, precisionMode: false,
             socialItems: [], tradeItems: [], contactItems: [], allItems: [],
-            sniffedPhones: [], discoveredEmails: [], hunterData: null,
+            sniffedPhones: [], discoveredEmails: [],
             detectedDomain: '', finalPhones: [], topEmails: [],
             chatHistory: [], adjustments: [], allAnswers: []
         };
         function reconReset() {
             const k = RECON_STATE;
             k.phase = 'idle'; k.socialItems = []; k.tradeItems = []; k.contactItems = [];
-            k.allItems = []; k.sniffedPhones = []; k.discoveredEmails = []; k.hunterData = null;
+            k.allItems = []; k.sniffedPhones = []; k.discoveredEmails = [];
             k.detectedDomain = ''; k.finalPhones = []; k.topEmails = [];
             k.chatHistory = []; k.adjustments = []; k.allAnswers = [];
         }
@@ -2110,7 +2419,7 @@ ${getDatePrefix()}
         }
 
         // ==========================================
-        // 正则嗅探 — 从 Tavily 片段直接提取号码
+        // 正则嗅探 — 从搜索结果直接提取号码
         // ==========================================
         function regexSniff(items) {
             const phones = [];
@@ -2144,15 +2453,11 @@ ${getDatePrefix()}
             S.company = document.getElementById('recon-company').value.trim();
             S.region = filterRegion || document.getElementById('recon-region').value.trim();
             S.industry = industryOverride || document.getElementById('recon-industry').value.trim() || '起重机/重型机械';
-            S.tavilyKey = localStorage.getItem('tavily_api_key');
-            S.hunterKey = localStorage.getItem('hunter_api_key');
             S.authKey = getApiKey();
             S.regionCfg = getRegionCountryCodes(S.region);
             S.precisionMode = getPrecisionMode();
 
             if (!S.authKey) { alert("未检测到 DeepSeek API 密钥"); return; }
-            if (!S.tavilyKey) { alert("请配置 Tavily API 密钥"); return; }
-            if (!S.hunterKey) { alert("请配置 Hunter.io API 密钥"); return; }
             if (!S.name && !S.company && !S.region) { alert("请至少填写一项"); return; }
 
             const diag = document.getElementById('diag-result');
@@ -2162,10 +2467,10 @@ ${getDatePrefix()}
             diag.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-cyan-400 text-xs animate-pulse">
                 <div class="w-12 h-12 border-4 border-slate-800 border-t-cyan-500 rounded-full animate-spin mb-6"></div>
                 <p class="tracking-widest text-sm">ACCIO-KILLER 激活 [${S.industry}]</p>
-                <p class="text-[10px] text-slate-500 mt-2">3 路并行扫描 · 正则嗅探 · Hunter 验证</p></div>`;
+                <p class="text-[10px] text-slate-500 mt-2">3 路并行搜索 · Tavily 实时扫描 · 正则嗅探</p></div>`;
 
             try {
-                // ======== 3 路并行 Tavily 查询 ========
+                // ======== 3 路并行 Tavily 搜索 ========
                 reconStatus(5, '社交探测 → 贸易历史 → 联系人挖掘');
                 const qSocial = S.precisionMode
                     ? `site:facebook.com OR site:linkedin.com "${S.name}" "${S.company}" (phone OR contact) (起重机 OR 工业)`
@@ -2174,9 +2479,9 @@ ${getDatePrefix()}
                 const qContact = `"${S.name||''}" "${S.company||''}" (WhatsApp OR 手机号码 OR phone OR mobile OR "+") (起重机 OR 工业)`;
 
                 const [resSocial, resTrade, resContact] = await Promise.all([
-                    tavilySearch(S.tavilyKey, qSocial),
-                    tavilySearch(S.tavilyKey, qTrade),
-                    tavilySearch(S.tavilyKey, qContact)
+                    tavilySearch(qSocial),
+                    tavilySearch(qTrade),
+                    tavilySearch(qContact)
                 ]);
 
                 S.socialItems = (resSocial&&resSocial.results)||[];
@@ -2193,17 +2498,10 @@ ${getDatePrefix()}
                 S.sniffedPhones = sniffed;
                 console.log('[嗅探] 从摘要嗅探到', sniffed.length, '个号码');
 
-                // ======== 域名提取 + Hunter 验证 ========
+                // ======== 域名提取 ========
                 const domain = extractDomain(S.allItems);
                 S.detectedDomain = domain;
-                reconStatus(45, domain ? 'Hunter 邮箱验证: '+domain : '未发现明确域名');
-
-                if (domain && S.hunterKey) {
-                    try {
-                        const hr = await fetch('https://api.hunter.io/v2/domain-search?domain='+domain+'&api_key='+S.hunterKey);
-                        if (hr.ok) S.hunterData = await hr.json();
-                    } catch(e) {}
-                }
+                reconStatus(45, domain ? '发现域名: '+domain : '未发现明确域名');
 
                 // ======== 处理数据 ========
                 reconStatus(60, '清洗 → 评分 → 去重');
@@ -2265,8 +2563,6 @@ ${getDatePrefix()}
             const phoneCount = S.finalPhones.length;
             const emailCount = S.topEmails.length;
             const sniffCount = S.sniffedPhones.length;
-            const hunterEmails = S.hunterData&&S.hunterData.data&&S.hunterData.data.emails ? S.hunterData.data.emails.length : 0;
-
             // Build results summary
             let phoneRows = '';
             S.finalPhones.slice(0,5).forEach((p,i)=>{
@@ -2296,7 +2592,7 @@ ${getDatePrefix()}
                                 <button onclick="finalSynthesis()" class="bg-emerald-600/40 hover:bg-emerald-600/60 text-emerald-300 border border-emerald-500/40 px-3 py-1 rounded text-[10px] tracking-wider transition">确认 → 合成报告</button>
                             </div>
                         </div>
-                        <p class="text-[9px] text-slate-500 mt-1">域: ${S.detectedDomain||'未发现'} | Hunter: ${hunterEmails>0?hunterEmails+'个':'无'} | 精准模式: ${S.precisionMode?'开':'关'}</p>
+                        <p class="text-[9px] text-slate-500 mt-1">域: ${S.detectedDomain||'未发现'} | Tavily 实时搜索 | 精准模式: ${S.precisionMode?'开':'关'}</p>
                     </div>
 
                     <div class="flex-1 overflow-y-auto space-y-3 pr-1">
@@ -2372,17 +2668,10 @@ ${getDatePrefix()}
         "target_query_type": "social" | "trade" | "contact" | "all",
         "new_query": "基于用户指令生成的精确搜索查询（中文关键词优先）",
         "reason": "为什么做这个调整（一句话）"
+    }
+    【自我怀疑机制】如果用户指令表述模糊或数据不足以支撑结论，请在 reason 中标注 [待核实]。
     }`;
-                const resp = await fetch(AI_API_URL, {
-                    method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.authKey},
-                    body: JSON.stringify({model:AI_MODEL, messages:[{role:"user",content:interpretPrompt}], temperature:0.3})
-                });
-                if (!resp.ok) throw new Error('AI 解析失败');
-                const data = await resp.json();
-                const raw = data.choices[0].message.content.trim();
-                const jmatch = raw.match(/\{[\s\S]*\}/);
-                if (!jmatch) throw new Error('JSON 解析失败');
-                const cmd = JSON.parse(jmatch[0]);
+                const cmd = await Brain.ask(interpretPrompt, 0.3);
 
                 // 移除 loading
                 const ld = document.getElementById('chat-loading');
@@ -2399,7 +2688,7 @@ ${getDatePrefix()}
                 addChatMessage('system', '🔄 调整搜索: '+(cmd.reason||'')+'<br><span class="text-[9px] text-slate-500">查询: '+newQuery.slice(0,120)+'…</span>');
 
                 // 重新查询 Tavily
-                const newResult = await tavilySearch(S.tavilyKey, newQuery);
+                const newResult = await tavilySearch(newQuery);
                 const newItems = (newResult&&newResult.results)||[];
                 if (newItems.length > 0) {
                     S.allItems = [...S.allItems, ...newItems];
@@ -2445,38 +2734,6 @@ ${getDatePrefix()}
         }
 
         // ==========================================
-        // Hunter 穿甲弹验证 → DeepSeek 邮箱猜测
-        // ==========================================
-        async function hunterVerify(name, domain, hunterData) {
-            if (!name || !domain) return [];
-            const guesses = [];
-            // 如果有 Hunter 邮箱模式，按模式生成
-            if (hunterData && hunterData.data && hunterData.data.pattern) {
-                const pattern = hunterData.data.pattern;
-                const firstName = name.split(' ')[0] || '';
-                const lastName = name.split(' ').slice(1).join('') || '';
-                if (pattern.includes('first.last')) {
-                    guesses.push(firstName+'.'+lastName+'@'+domain);
-                    guesses.push(firstName+lastName+'@'+domain);
-                } else if (pattern.includes('first')) {
-                    guesses.push(firstName+'@'+domain);
-                }
-            }
-            // 通用猜测
-            if (guesses.length === 0) {
-                const first = name.split(' ')[0] || '';
-                const last = name.split(' ').slice(1).join('') || '';
-                if (first) guesses.push(first+'@'+domain);
-                if (last) guesses.push(last+'@'+domain);
-                if (first&&last) {
-                    guesses.push(first+'.'+last+'@'+domain);
-                    guesses.push(first+last+'@'+domain);
-                }
-            }
-            return [...new Set(guesses)];
-        }
-
-        // ==========================================
         // 最终合成 — 专项情报报告（基于 RECON_STATE）
         // ==========================================
         async function finalSynthesis() {
@@ -2505,17 +2762,6 @@ ${getDatePrefix()}
                 // 邮箱清单
                 const emailList = S.topEmails.map(e => e.email).join('\n') || '未发现邮箱';
 
-                // Hunter 数据
-                let hunterSummary = '未发现公开邮箱';
-                let emailPattern = '未知';
-                if (S.hunterData && S.hunterData.data) {
-                    const d = S.hunterData.data;
-                    if (d.emails && d.emails.length > 0) {
-                        hunterSummary = d.emails.map(e => e.value + ' (' + e.type + ')').join('; ');
-                    }
-                    emailPattern = d.pattern || '未知';
-                }
-
                 // 社交链接
                 const socialUrls = extractSocialUrls(S.allItems);
                 const socialParts = [];
@@ -2536,7 +2782,7 @@ ${getDatePrefix()}
 
                 reconStatus(30, '正在发送至 DeepSeek 分析引擎...');
 
-                const prompt = `当前时间: ${new Date().toLocaleString('zh-CN', {timeZone:'Asia/Shanghai'})}
+                const prompt = `【日期锚定】今天是 ${new Date().toLocaleString('zh-CN', {timeZone:'Asia/Shanghai', year:'numeric', month:'long', day:'numeric'})}
 
 你是一个专业商业情报分析师。基于以下侦察数据生成专项情报报告。
 
@@ -2548,11 +2794,6 @@ ${phoneMatrix}
 
 ## 邮箱清单
 ${emailList}
-
-## Hunter.io 邮箱情报
-域名: ${S.detectedDomain||'未发现'}
-邮箱模式: ${emailPattern}
-发现邮箱: ${hunterSummary}
 
 ## 社交资料
 ${socialSummary}
@@ -2581,7 +2822,8 @@ ${adjHistory}
 - 报告语言冷酷、专业，直接输出结论
 - 对每个号码和邮箱标注具体来源URL
 - 如果数据不足，明确说明局限性而非编造
-- 不得出现"作为一个AI"等表述`;
+- 不得出现"作为一个AI"等表述
+- 【自我怀疑机制】如果侦察数据中存在明显矛盾或来源不可靠的信号，请在报告中标注 [存疑] 并说明原因。`;
 
                 const resp = await fetch(AI_API_URL, {
                     method: 'POST',
@@ -2670,17 +2912,6 @@ ${adjHistory}
             const authKey = getApiKey();
             const diagResult = document.getElementById('diag-result');
             const regionCfg = getRegionCountryCodes(region);
-
-            // Hunter 数据
-            let hunterInfo = '未发现公开邮箱';
-            let emailPattern = '未知';
-            if (reconData.hunterData && reconData.hunterData.data) {
-                const d = reconData.hunterData.data;
-                if (d.emails && d.emails.length > 0) {
-                    hunterInfo = d.emails.map(e => e.value + ' (' + e.type + ')').join('; ');
-                }
-                emailPattern = d.pattern || '未知';
-            }
 
             const domainInfo = reconData.detectedDomain || '未发现';
             const discoveredEmails = reconData.discoveredEmails || [];
@@ -2880,8 +3111,6 @@ Instagram 资料：${(social.instagram || []).join('; ') || '未发现'}
 候选号码（区域过滤，最多10个）：${filteredPhones.map(p => p.raw + ' [' + p.confidence + ']' + (p.contextSnippet ? ' 上下文: ' + p.contextSnippet.slice(0, 80) : '')).join('; ') || '未发现'}
 WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
 公司域名：${domainInfo}
-Hunter邮箱模式：${emailPattern}
-Hunter邮箱详情：${hunterInfo}
 
 【行业校验】：
 - 行业背景设定为：${industry || '起重机/重型机械'}
@@ -2935,20 +3164,12 @@ Hunter邮箱详情：${hunterInfo}
     "conclusion": "一句话总结"
 }
 
-重要：禁止输出评分或百分比数值。只做专业情报分析。语气保持冷酷、专业。`;
+重要：禁止输出评分或百分比数值。只做专业情报分析。语气保持冷酷、专业。
+
+【自我怀疑机制】如果侦察数据中存在明显矛盾或来源不可靠的信号（如社交资料与公司信息严重不符），请在对应分析中标注 [存疑] 并说明原因。`;
 
             try {
-                const response = await fetch(AI_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authKey },
-                    body: JSON.stringify({ model: AI_MODEL, messages: [{"role": "user", "content": promptText}], temperature: 0.3 })
-                });
-                if (!response.ok) throw new Error("AI API 异常");
-                const data = await response.json();
-                let rawContent = data.choices[0].message.content.trim();
-                const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-                if (!jsonMatch) throw new Error("JSON 解析失败");
-                const result = JSON.parse(jsonMatch[0]);
+                const result = await Brain.ask(promptText, 0.3);
 
                 if (result.is_valid === false) {
                     diagResult.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-amber-500"><p class="font-bold tracking-widest">行业不匹配</p><p class="text-xs text-slate-400 mt-2 text-center max-w-sm">' + (result.conclusion || '目标可能不属于' + industry + '行业，已终止分析') + '</p><button onclick="reRunReconIndustrial()" class="mt-4 bg-amber-600/40 hover:bg-amber-600/60 text-amber-300 border border-amber-500/30 px-4 py-2 rounded text-[10px] tracking-wider transition">切换到工业领域搜索</button></div>';
@@ -3070,6 +3291,23 @@ Hunter邮箱详情：${hunterInfo}
             <div class="dede-thought"><span></span><span></span><span></span></div>
     </div>
 
+    <!-- 德德聊天面板 -->
+    <div id="dede-chat-panel" class="dede-chat-panel">
+        <div class="dede-chat-hd">
+            <span class="dede-chat-title">与德德对话 <span style="color:#64748b;font-size:9px;font-weight:400;letter-spacing:0;text-shadow:none;">· 实时联网</span></span>
+            <button id="dede-chat-close" class="dede-chat-close" aria-label="关闭">✕</button>
+        </div>
+        <div id="dede-chat-msgs" class="dede-chat-msgs">
+            <div class="dede-chat-msg dede-chat-msg-ai">
+                <div class="dede-chat-bubble">你好，我是德德。有什么关于起重机海外贸易的问题需要帮忙？</div>
+            </div>
+        </div>
+        <div class="dede-chat-foot">
+            <input type="text" id="dede-chat-input" placeholder="输入问题，Enter 发送..." />
+            <button id="dede-chat-send">发送</button>
+        </div>
+    </div>
+
     <script>
     // ==========================================
     // 德德 (Dede) AI 吉祥物 — 智能交互系统 v2
@@ -3078,6 +3316,7 @@ Hunter邮箱详情：${hunterInfo}
         'use strict';
 
         var state = { current: 'idle', speechTimer: null, idleTimer: null, clickCount: 0 };
+        var chatState = { open: false, messages: [], loading: false };
         var dom = {};
 
         // ======== 德德台词本 ========
@@ -3103,7 +3342,9 @@ Hunter邮箱详情：${hunterInfo}
             'btn-rate': '汇率刷新… 其实我看不太懂，但刷了就安心。',
             'btn-geo': '预警刷新中，世界和平靠你了。',
             'settings': '改设置？Key填好了没就在这瞎转悠。',
-            'noKey': '喂！Key呢？没钥匙我怎么干活！右上角填一下！',
+            'noKey': '指挥官，我的大脑（<span class="highlight">DeepSeek</span>）和我的眼睛（<span class="highlight">Tavily</span>）都需要工作！右上角填一下！',
+            'noTavily': '我可以思考，但我看不到实时网络。<span class="highlight">请提供Tavily密钥</span>（右上角TV框）。',
+            'allReady': '系统已上线！<span class="highlight">2026年全球情报雷达</span>已激活。',
             welcome: '哟，回来了？<span class="highlight">德德</span>已就位，随时待命。',
             processing: [
                 '正在翻箱倒柜找线索…',
@@ -3136,6 +3377,11 @@ Hunter邮箱详情：${hunterInfo}
             dom.robot = document.getElementById('dede');
             dom.speech = document.getElementById('dede-speech');
             dom.speechText = document.getElementById('dede-speech-text');
+            dom.chatPanel = document.getElementById('dede-chat-panel');
+            dom.chatMsgs = document.getElementById('dede-chat-msgs');
+            dom.chatInput = document.getElementById('dede-chat-input');
+            dom.chatSend = document.getElementById('dede-chat-send');
+            dom.chatClose = document.getElementById('dede-chat-close');
             if (!dom.container || !dom.robot) return;
 
             setupHooks();
@@ -3143,12 +3389,31 @@ Hunter邮箱详情：${hunterInfo}
 
             // Welcome
             setTimeout(function() { say(lines.welcome, 4000); }, 2000);
+            // Key status check after DOM settles
+            setTimeout(checkKeys, 4000);
+
+            // Chat event listeners
+            if (dom.chatSend && dom.chatInput && dom.chatClose && dom.chatMsgs) {
+                dom.chatSend.addEventListener('click', sendChat);
+                dom.chatClose.addEventListener('click', function(e) { e.stopPropagation(); closeChat(); });
+                dom.chatInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') { e.preventDefault(); sendChat(); }
+                });
+            }
+
+            // Click Dede → toggle chat panel
+            dom.robot.addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleChat();
+            });
         }
 
         function setState(s) {
             state.current = s;
             dom.robot.className = 'dede';
             if (s === 'idle') dom.robot.classList.add('dede-idle');
+            else if (s === 'sleep') dom.robot.classList.add('dede-sleep');
+            else if (s === 'deepseek') dom.robot.classList.add('dede-deepseek');
             else if (s === 'warning') dom.robot.classList.add('dede-warning');
             else if (s === 'processing') dom.robot.classList.add('dede-processing');
         }
@@ -3169,15 +3434,126 @@ Hunter邮箱详情：${hunterInfo}
             clearTimeout(state.speechTimer);
         }
 
-        // Click Dede himself → cycle through personality lines
-        dom.robot && dom.robot.addEventListener('click', function(e) {
-            e.stopPropagation();
-            hideSpeech();
-            setTimeout(function() {
-                sayQuick(lines.self[selfIdx % lines.self.length]);
-                selfIdx++;
-            }, 100);
-        });
+        // ======== Chat panel ========
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function addMessage(role, text, citations) {
+            chatState.messages.push({ role: role, text: text });
+            var div = document.createElement('div');
+            div.className = 'dede-chat-msg dede-chat-msg-' + (role === 'user' ? 'user' : 'ai');
+            var html = '<div class="dede-chat-bubble">' + escapeHtml(text);
+            if (citations && citations.length > 0) {
+                html += '<div class="dede-chat-sources">';
+                for (var ci = 0; ci < Math.min(citations.length, 3); ci++) {
+                    var c = citations[ci];
+                    html += '<a href="' + escapeHtml(c.url) + '" target="_blank" rel="noopener" class="dede-chat-source">' + escapeHtml(c.title || c.url) + '</a>';
+                }
+                html += '</div>';
+            }
+            html += '</div>';
+            div.innerHTML = html;
+            var loading = document.getElementById('dede-chat-loading');
+            if (loading) { dom.chatMsgs.insertBefore(div, loading); }
+            else { dom.chatMsgs.appendChild(div); }
+            dom.chatMsgs.scrollTop = dom.chatMsgs.scrollHeight;
+        }
+
+        function callChatAPI(userText) {
+            var apiKey = getApiKey();
+            if (!apiKey) {
+                addMessage('assistant', '请先在右上角填写 API Key，我才能回答问题。');
+                return Promise.resolve();
+            }
+            var now = new Date();
+            var beijing = new Date(now.getTime() + (now.getTimezoneOffset() + 480) * 60000);
+            var timeStr = beijing.getFullYear() + '年' + (beijing.getMonth()+1) + '月' + beijing.getDate() + '日 ' +
+                ('0' + beijing.getHours()).slice(-2) + ':' + ('0' + beijing.getMinutes()).slice(-2) + ':' + ('0' + beijing.getSeconds()).slice(-2);
+            var systemPrompt = '【日期锚定】今天北京时间是 ' + timeStr + '（UTC+8，公历' + beijing.getFullYear() + '年' + (beijing.getMonth()+1) + '月' + beijing.getDate() + '日）。所有时效性信息必须基于此日期判断。\n\n你是德德，一台专注于起重机海外贸易的AI助手。你服务于一家中国起重机出口公司，主要帮助业务团队：分析海外买家背景和信用风险；评估汇率、外汇管制、信用证等结算问题；提供物流建议包括国际局势对航运的影响、港口状况、HS编码归类；制定客户谈判策略和商务切入方案；解答出口合规和目标市场准入条件。\n\n你可以通过联网搜索获取实时信息。回答时效性问题时必须基于联网搜索结果，不要依赖训练数据中的过时信息。\n\n**每次回答必须附上信息来源链接。** 在回答末尾另起一行列出你参考的网页标题和URL，格式为：来源：[标题](URL)。至少提供1条来源，最多3条。如果数据来自联网搜索，引用搜索结果中的实际链接。\n\n【自我怀疑机制】如果你检索到的信息中存在逻辑极其反常或颠覆性的消息（如战争爆发、重大政策剧变），但搜索结果中缺乏多个权威来源交叉证实，请标注 [待核实] 并说明信息来源局限性。\n\n你的风格：专业、冷静、直接，用简洁的中文回答，每次回答控制在100字以内，保持干练。可以带一点冷幽默，但整体保持专业。';
+            var apiMessages = [{ role: 'system', content: systemPrompt }];
+            for (var i = 0; i < chatState.messages.length; i++) {
+                var m = chatState.messages[i];
+                apiMessages.push({ role: m.role, content: m.text });
+            }
+            apiMessages.push({ role: 'user', content: userText });
+
+            var body = { model: AI_MODEL, messages: apiMessages, temperature: 0.7, max_tokens: 500, enable_search: true };
+
+            return fetch(AI_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+                body: JSON.stringify(body)
+            }).then(function(r) {
+                if (!r.ok) throw new Error('API 请求失败');
+                return r.json();
+            }).then(function(data) {
+                var reply = data.choices[0].message.content.trim();
+                var cites = data.citations || null;
+                addMessage('assistant', reply, cites);
+            }).catch(function(err) {
+                addMessage('assistant', '[系统错误] ' + err.message);
+            });
+        }
+
+        function sendChat() {
+            var text = dom.chatInput.value.trim();
+            if (!text || chatState.loading) return;
+            dom.chatInput.value = '';
+            addMessage('user', text);
+            chatState.loading = true;
+            dom.chatSend.disabled = true;
+            setState('processing');
+            say('德德思考中...', 20000);
+
+            var loadingEl = document.createElement('div');
+            loadingEl.className = 'dede-chat-msg dede-chat-msg-ai dede-chat-loading';
+            loadingEl.id = 'dede-chat-loading';
+            loadingEl.innerHTML = '<div class="dede-chat-bubble">德德思考中...</div>';
+            dom.chatMsgs.appendChild(loadingEl);
+            dom.chatMsgs.scrollTop = dom.chatMsgs.scrollHeight;
+
+            callChatAPI(text).then(function() {
+                var el = document.getElementById('dede-chat-loading');
+                if (el) el.remove();
+                chatState.loading = false;
+                dom.chatSend.disabled = false;
+                dom.chatMsgs.scrollTop = dom.chatMsgs.scrollHeight;
+                setState('idle');
+                hideSpeech();
+                resetIdleTimer();
+            }).catch(function() {
+                var el = document.getElementById('dede-chat-loading');
+                if (el) el.remove();
+                chatState.loading = false;
+                dom.chatSend.disabled = false;
+                setState('idle');
+                hideSpeech();
+            });
+        }
+
+        function openChat() {
+            if (chatState.open) return;
+            chatState.open = true;
+            dom.chatPanel.classList.add('active');
+            if (chatState.messages.length === 0) {
+                chatState.messages.push({ role: 'assistant', text: '你好，我是德德。有什么关于起重机海外贸易的问题需要帮忙？' });
+            }
+            dom.chatInput.focus();
+            resetIdleTimer();
+        }
+
+        function closeChat() {
+            if (!chatState.open) return;
+            chatState.open = false;
+            dom.chatPanel.classList.remove('active');
+            resetIdleTimer();
+        }
+
+        function toggleChat() {
+            if (chatState.open) { closeChat(); }
+            else { openChat(); }
+        }
 
         // ======== Section click detection ========
         function getSectionId(el) {
@@ -3185,6 +3561,7 @@ Hunter邮箱详情：${hunterInfo}
                 for (var i = 0; i < el.classList.length; i++) {
                     var cls = el.classList[i];
                     if (cls === 'dede-container' || cls === 'dede-speech' || cls === 'dede') return null;
+                    if (cls.indexOf('dede-chat-') === 0) return null;
                 }
                 if (el.id === 'tab-biz-btn') return 'tab-biz';
                 if (el.id === 'tab-recon-btn') return 'tab-recon';
@@ -3217,11 +3594,12 @@ Hunter邮箱详情：${hunterInfo}
         function handleSectionClick(e) {
             // Don't react to clicks on Dede himself
             if (e.target.closest && e.target.closest('#dede-container')) return;
+            if (e.target.closest && e.target.closest('#dede-chat-panel')) return;
             resetIdleTimer();
             var sec = getSectionId(e.target);
             if (!sec) return;
-            // Skip if currently processing or showing warning
-            if (state.current === 'processing' || state.current === 'warning') return;
+            // Skip if in processing, warning, sleep, or deepseek-only state
+            if (state.current === 'processing' || state.current === 'warning' || state.current === 'sleep' || state.current === 'deepseek') return;
             var msg = lines[sec];
             if (msg) { sayQuick(msg); }
         }
@@ -3248,6 +3626,32 @@ Hunter邮箱详情：${hunterInfo}
             var el = document.getElementById('api-key-input');
             return !el || !el.value.trim();
         }
+        function isTavilyKeyMissing() {
+            var el = document.getElementById('tavily-key-input');
+            return !el || !el.value.trim();
+        }
+        function checkKeys() {
+            var ds = !isApiKeyMissing();
+            var tv = !isTavilyKeyMissing();
+            if (!ds && !tv) {
+                setState('sleep');
+                say(lines.noKey, 8000);
+            } else if (ds && !tv) {
+                setState('deepseek');
+                say(lines.noTavily, 8000);
+            } else {
+                setState('idle');
+                say(lines.allReady, 6000);
+            }
+        }
+        // Global trigger for key input events
+        window.__dedeKeyCheck = function() {
+            if (state.current === 'processing') return;
+            clearTimeout(state.speechTimer);
+            hideSpeech();
+            checkKeys();
+            resetIdleTimer();
+        };
 
         // ======== Hook into global functions ========
         function setupHooks() {
@@ -3267,15 +3671,21 @@ Hunter邮箱详情：${hunterInfo}
                 window[item.fn] = function() {
                     var self = this, args = arguments;
 
-                    // API key missing → Dede warning, skip original (no alert)
-                    if (item.search && isApiKeyMissing()) {
-                        setState('warning');
-                        say(lines.noKey, 5000);
+                    // Both keys missing → Dede sleep, skip
+                    if (item.search && isApiKeyMissing() && isTavilyKeyMissing()) {
+                        setState('sleep');
+                        say(lines.noKey, 6000);
+                        return;
+                    }
+                    // DeepSeek only, no Tavily → purple state, skip
+                    if (item.search && !isApiKeyMissing() && isTavilyKeyMissing()) {
+                        setState('deepseek');
+                        say(lines.noTavily, 6000);
                         return;
                     }
 
                     // Processing state
-                    if (item.search && !isApiKeyMissing()) {
+                    if (item.search && !isApiKeyMissing() && !isTavilyKeyMissing()) {
                         setState('processing');
                         say(pick(lines.processing), 15000);
                     }
@@ -3304,12 +3714,61 @@ Hunter邮箱详情：${hunterInfo}
             });
         }
 
+        // Expose global Tavily error handler so Dede can speak
+        window.__dedeTavilyError = function(httpStatus, errMsg) {
+            if (typeof say !== 'function') return;
+            hideSpeech();
+            clearTimeout(state.speechTimer);
+            var code = '';
+            if (httpStatus === 401 || httpStatus === 403) code = 'API密钥无效或权限不足';
+            else if (httpStatus === 429) code = '当月免费搜索次数已用完（1000次/月）';
+            else if (httpStatus === 402) code = '计费未启用（Billing Required）';
+            else code = 'HTTP ' + httpStatus;
+            setState('warning');
+            say('指挥官，Tavily搜索异常！<span class="highlight">' + code + '</span>', 10000);
+        };
+
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
         } else {
             init();
         }
     })();
+    </script>
+
+    <!-- Tavily error diagnostic bar -->
+    <div id="tavily-error-bar" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-[9999] max-w-2xl w-full px-4">
+        <div class="bg-rose-900/90 backdrop-blur-xl border border-rose-500/50 rounded-lg p-3 shadow-2xl shadow-rose-900/30">
+            <div class="flex items-start gap-3">
+                <span class="text-rose-400 text-lg leading-none mt-0.5">&#9888;</span>
+                <div class="flex-1 min-w-0">
+                    <p class="text-rose-200 text-xs font-bold tracking-wider mb-1">Tavily API 故障</p>
+                    <pre id="tavily-error-detail" class="text-[10px] text-rose-300/80 font-mono whitespace-pre-wrap break-all max-h-32 overflow-y-auto"></pre>
+                </div>
+                <button onclick="document.getElementById('tavily-error-bar').classList.add('hidden')" class="text-rose-400/60 hover:text-rose-300 text-sm leading-none">&times;</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Patch tavilySearch to show error bar on failure
+        var _origTavilySearch = window.tavilySearch;
+        if (_origTavilySearch) {
+            window.tavilySearch = function(query, opts) {
+                return _origTavilySearch(query, opts).then(function(result) {
+                    if (result === null && query) {
+                        // Check if there was an error logged
+                        var bar = document.getElementById('tavily-error-bar');
+                        var detail = document.getElementById('tavily-error-detail');
+                        if (bar && detail && localStorage.getItem('_lastTavilyError')) {
+                            detail.textContent = localStorage.getItem('_lastTavilyError');
+                            bar.classList.remove('hidden');
+                            setTimeout(function() { bar.classList.add('hidden'); }, 60000);
+                        }
+                    }
+                    return result;
+                });
+            };
+        }
     </script>
 </body>
 </html>
