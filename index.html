@@ -414,7 +414,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-30 12:12:20" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-30 12:22:12" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -519,6 +519,17 @@
         ];
         // 德德 DDG site: 过滤器（从 DEDE_DOMAINS 生成）
         const DEDE_SITE_FILTER = '(site:' + DEDE_DOMAINS.join(' OR site:') + ')';
+        // 德德智能路由 — 类别到域名列表的映射
+        const DEDE_ROUTE_MAP = {
+            weather:   { domains: ['weather.com', 'accuweather.com', 'weather.gov', 'wmo.int', 'cma.gov.cn', 'windy.com'], label: '气象天气' },
+            time:      { domains: ['timeanddate.com', 'time.is', '24timezones.com'], label: '时间时区' },
+            currency:  { domains: ['xe.com', 'oanda.com', 'investing.com', 'bloomberg.com'], label: '汇率财经' },
+            news:      { domains: ['reuters.com', 'apnews.com', 'bloomberg.com', 'xinhuanet.com', 'chinadaily.com.cn', 'state.gov', 'un.org'], label: '新闻时事' },
+            maritime:  { domains: ['lloydslist.com', 'imo.org', 'marinetraffic.com', 'vesselfinder.com', 'worldportsource.com'], label: '航运海事' },
+            trade:     { domains: ['wto.org', 'trademap.org', 'customs.gov.cn', 'mofcom.gov.cn', 'comtrade.un.org'], label: '贸易关税' },
+            company:   { domains: ['opencorporates.com', 'crunchbase.com', 'bloomberg.com', 'reuters.com'], label: '企业情报' },
+            general:   { domains: TAVILY_WHITELIST, label: '综合' }
+        };
         function getApiKey() { const el = document.getElementById('api-key-input'); return el ? el.value.trim() : ''; }
         function getTavilyKey() { const el = document.getElementById('tavily-key-input'); return el ? el.value.trim() : ''; }
         function isDsKeyMissing() { var k = getApiKey(); return !k; }
@@ -3626,19 +3637,53 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
             var timeStr = dateStr + ' ' +
                 ('0' + beijing.getHours()).slice(-2) + ':' + ('0' + beijing.getMinutes()).slice(-2) + ':' + ('0' + beijing.getSeconds()).slice(-2);
 
-            // Step 1: 多域搜索（Tavily 限定 DEDE_DOMAINS → DDG site: 过滤后备）
-            var searchQuery = userText + ' ' + dateISO;
-            var searchResult = await tfiSearch(searchQuery, { max_results: 4 });
-            // 如果 TFI 白名单新闻站没结果，尝试德德实用域名（天气/汇率等）
-            if (!searchResult || !searchResult.results || searchResult.results.length === 0) {
-                var tvKey = getTavilyKey();
-                if (tvKey) {
-                    searchResult = await _tavilyApi(searchQuery, { include_domains: DEDE_DOMAINS, max_results: 4 });
-                }
-                if (!searchResult || !searchResult.results || searchResult.results.length === 0) {
-                    searchResult = await duckDuckGoSearch(searchQuery + ' ' + DEDE_SITE_FILTER, { max_results: 4, date_range: 'd' });
-                }
+            // ======== Step 1: DeepSeek 智能路由 ========
+            var routePrompt = '分析用户的问题，判断它属于以下哪个类别，并生成3个最适合用于搜索引擎的关键词（中英文混合）。\n\n' +
+                '类别列表：\n' +
+                '- weather（天气/气候/温度，例如问天气、气温、降雨、台风）\n' +
+                '- time（时间/时区/日期，例如问现在几点、时差、当前时间）\n' +
+                '- currency（汇率/财经/货币，例如问汇率、外汇、人民币价格）\n' +
+                '- news（新闻/时事/政治，例如问最近发生了什么、政策、制裁）\n' +
+                '- maritime（航运/船舶/港口，例如问船期、港口拥堵、运费）\n' +
+                '- trade（贸易/关税/HS编码，例如问关税、进出口、税率）\n' +
+                '- company（企业/公司/背景，例如问某家公司怎么样、背景调查）\n' +
+                '- general（以上都不匹配的综合类问题）\n\n' +
+                '用户问题：' + userText + '\n\n' +
+                '【日期锚定】今天是 ' + dateISO + '。\n\n' +
+                '返回纯JSON（不要 markdown 标记）：\n' +
+                '{\n' +
+                '    "category": "weather",\n' +
+                '    "keywords": ["郑州 天气 ' + dateStr + '", "Zhengzhou weather forecast ' + dateISO + '", "郑州 气温 今日"],\n' +
+                '    "reason": "简要说明判断理由"\n' +
+                '}';
+            var routeResult;
+            try {
+                routeResult = await Brain.ask(routePrompt, 0.1);
+            } catch(e) {
+                routeResult = { category: 'general', keywords: [userText + ' ' + dateISO] };
             }
+            var category = routeResult && routeResult.category && DEDE_ROUTE_MAP[routeResult.category] ? routeResult.category : 'general';
+            var keywords = (routeResult && routeResult.keywords) || [userText + ' ' + dateISO];
+            var routeInfo = DEDE_ROUTE_MAP[category];
+
+            // ======== Step 2: 按路由结果定向搜索 ========
+            var searchQuery = keywords.slice(0, 2).join(' ');
+            var searchResult = null;
+            // 先试 Tavily + 该类别域名
+            var tvKey = getTavilyKey();
+            if (tvKey) {
+                searchResult = await _tavilyApi(searchQuery, { include_domains: routeInfo.domains, max_results: 4 });
+            }
+            // Tavily 没结果 → DDG + site: 过滤该类别域名
+            if (!searchResult || !searchResult.results || searchResult.results.length === 0) {
+                var routeSiteFilter = '(site:' + routeInfo.domains.join(' OR site:') + ')';
+                searchResult = await duckDuckGoSearch(searchQuery + ' ' + routeSiteFilter, { max_results: 4, date_range: 'd' });
+            }
+            // DDG 也没结果 → 降级到全局 TFI 搜索
+            if (!searchResult || !searchResult.results || searchResult.results.length === 0) {
+                searchResult = await tfiSearch(searchQuery, { max_results: 4 });
+            }
+
             var searchContext = '';
             var searchSources = [];
             if (searchResult && searchResult.results && searchResult.results.length > 0) {
@@ -3650,9 +3695,11 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
                 }).join('\n');
             }
 
+            // ======== Step 3: DeepSeek 最终分析 ========
             var systemPrompt = '【日期锚定】今天北京时间是 ' + timeStr + '（UTC+8）。所有时效性信息必须基于此日期判断。\n\n' +
                 AUTH_REVIEW + '\n\n' +
                 '你是德德，一台专注于起重机海外贸易的AI助手。你服务于一家中国起重机出口公司。\n\n' +
+                '【路由信息】用户问题被归类为「' + routeInfo.label + '」，搜索定向到 ' + routeInfo.domains.slice(0, 4).join('、') + ' 等网站。\n\n' +
                 (searchContext
                     ? '以下是从互联网实时搜索到的相关信息，请**严格基于这些数据**回答，不要编造：\n\n' + searchContext + '\n\n'
                     : '（实时搜索未返回结果。如果用户询问的是实时信息，请如实告知"当前搜索未找到相关信息"。）\n\n') +
