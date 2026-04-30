@@ -92,6 +92,7 @@
         .dede-sleep .dede-thought span { background: rgba(100,116,139,0.2); }
         .dede-sleep .dede { animation: none; }
 
+
         /* Eye state: DeepSeek only (no Tavily) - purple */
         @keyframes dede-purple-glow { 0%, 100% { border-color: rgba(168,85,247,0.5); box-shadow: 0 0 12px rgba(168,85,247,0.2); } 50% { border-color: rgba(168,85,247,0.8); box-shadow: 0 0 20px rgba(168,85,247,0.4); } }
         @keyframes dede-purple-pupil { 0%, 100% { background: radial-gradient(circle, #d8b4fe, #a855f7); box-shadow: 0 0 10px rgba(168,85,247,0.6); } 50% { background: radial-gradient(circle, #c084fc, #9333ea); box-shadow: 0 0 15px rgba(168,85,247,0.8); } }
@@ -217,6 +218,10 @@
                         <a href="javascript:void(0)" onclick="scrollToSection('sec-feedback')" class="text-sm text-slate-400 hover:text-cyan-400 border border-transparent hover:border-cyan-500/30 px-3 py-2 rounded transition">反馈</a>
                     </div>
                 </div>
+                <div class="hidden md:block text-center flex-1">
+                    <span class="text-[11px] text-amber-400/80 tracking-wider font-medium">内容由 AI 生成，请仔细甄别</span>
+                    <span class="text-[9px] text-slate-500 ml-1 cursor-pointer hover:text-amber-400/60 transition" onclick="openDisclaimer()">（具体声明点击右侧 ⚠️ 按钮）</span>
+                </div>
                 <div class="flex items-center gap-2 flex-wrap justify-end">
                     <div class="flex items-center gap-1">
                         <span class="text-[9px] text-slate-500 bg-black/40 px-1.5 py-0.5 rounded border border-white/10">DS</span>
@@ -227,9 +232,8 @@
                         <input type="password" id="tavily-key-input" value="" class="h-7 w-28 text-[10px] tracking-wider px-1.5" autocomplete="off" placeholder="Tavily Key">
                         <span class="text-[7px] text-slate-600 whitespace-nowrap">1000次/月</span>
                     </div>
-                    <button onclick="openSettings()" class="text-slate-400 hover:text-cyan-400 transition p-1.5 rounded border border-transparent hover:border-cyan-500/30" title="系统设置">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    </button>
+                    <button onclick="openSettings()" class="text-slate-400 hover:text-cyan-400 transition p-1.5 rounded border border-transparent hover:border-cyan-500/30" title="系统设置">⚙</button>
+                    <button onclick="openDisclaimer()" class="text-amber-500 hover:text-amber-400 transition p-1.5 rounded border border-transparent hover:border-amber-500/30" title="严正声明">⚠️</button>
                     <div class="flex items-center gap-2 bg-emerald-900/30 px-4 py-1.5 rounded-full border border-emerald-700/50 flex-shrink-0">
                         <div class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></div>
                         <span class="text-[10px] text-emerald-400 tracking-wider">系统在线</span>
@@ -308,31 +312,63 @@
                 <div class="glass-card rounded-2xl p-0 overflow-hidden border-none bg-tech-900/80">
                     <div class="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 p-4 flex justify-between items-center border-b border-white/5">
                         <div class="flex gap-1">
-                            <button id="tab-biz-btn" class="text-xs px-3 py-1.5 rounded font-bold bg-slate-800/50 text-slate-600 border border-slate-700/50 cursor-not-allowed">商业背调</button>
-                            <button id="tab-recon-btn" class="text-xs px-3 py-1.5 rounded font-bold text-slate-600 border border-transparent cursor-not-allowed">战略侦察</button>
+                            <button id="tab-biz-btn" onclick="switchBizTab()" class="text-xs px-3 py-1.5 rounded font-bold bg-blue-500/30 text-blue-300 border border-blue-500/40 cursor-pointer">商业背调</button>
+                            <button id="tab-recon-btn" onclick="switchReconTab()" class="text-xs px-3 py-1.5 rounded font-bold text-slate-400 hover:text-cyan-300 border border-transparent cursor-pointer">战略侦察</button>
                         </div>
                     </div>
 
                     <div class="p-6 grid grid-cols-1 lg:grid-cols-5 gap-8">
                         <!-- ===== 商业背调 Tab ===== -->
                         <div id="biz-tab-content" class="lg:col-span-2 flex flex-col gap-4 lg:pr-8 lg:border-r border-white/10">
-                            <div class="flex flex-col items-center justify-center h-full py-10">
-                                <div class="w-12 h-12 rounded-full border-2 border-slate-700 flex items-center justify-center mb-4">
-                                    <svg class="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            <div class="space-y-3">
+                                <input type="text" id="in-name" class="w-full h-9 text-sm px-3" placeholder="目标实体名称（公司名）">
+                                <div class="grid grid-cols-3 gap-2">
+                                    <input type="text" id="in-country" class="h-8 text-xs px-3" placeholder="国家（自动）">
+                                    <input type="text" id="in-city" class="h-8 text-xs px-3" placeholder="城市（自动）">
+                                    <input type="text" id="in-industry" class="h-8 text-xs px-3" placeholder="行业（自动）">
                                 </div>
-                                <p class="text-slate-400 text-sm font-bold tracking-wider mb-2">商业背调</p>
-                                <p class="text-slate-600 text-[11px] text-center max-w-xs leading-relaxed">因AI联网功能维护，暂停使用</p>
+                                <button onclick="startDiagnosis()" class="w-full bg-blue-600/40 hover:bg-blue-600/60 text-blue-300 border border-blue-500/40 py-2 rounded text-xs tracking-wider transition">开始背调分析</button>
+                                <p class="text-[9px] text-slate-600">输入公司名称自动识别 → DuckDuckGo 实时搜索 → DeepSeek AI 分析</p>
                             </div>
                         </div>
 
                         <!-- ===== 战略侦察 Tab ===== -->
                         <div id="recon-tab-content" class="lg:col-span-2 flex-col gap-4 lg:pr-8 lg:border-r border-white/10 hidden">
-                            <div class="flex flex-col items-center justify-center h-full py-10">
-                                <div class="w-12 h-12 rounded-full border-2 border-slate-700 flex items-center justify-center mb-4">
-                                    <svg class="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            <div class="space-y-3">
+                                <input type="text" id="recon-name" class="w-full h-9 text-sm px-3" placeholder="目标名称">
+                                <input type="text" id="recon-company" class="w-full h-8 text-xs px-3" placeholder="公司（可选）">
+                                <input type="text" id="recon-region" class="w-full h-8 text-xs px-3" placeholder="地区/国家（可选）">
+                                <input type="text" id="recon-industry" class="w-full h-8 text-xs px-3" placeholder="行业（默认起重机/重型机械）">
+                                <div class="flex items-center justify-between">
+                                    <label class="flex items-center gap-2 text-[10px] text-slate-400">
+                                        <input type="checkbox" id="precision-toggle" onchange="updatePrecisionStatus()" class="accent-cyan-500"> 精准模式
+                                    </label>
+                                    <span id="precision-status" class="text-[9px] text-slate-600">含社交探测</span>
                                 </div>
-                                <p class="text-slate-400 text-sm font-bold tracking-wider mb-2">战略侦察</p>
-                                <p class="text-slate-600 text-[11px] text-center max-w-xs leading-relaxed">因AI联网功能维护，暂停使用</p>
+                                <button onclick="startRecon()" class="w-full bg-cyan-600/40 hover:bg-cyan-600/60 text-cyan-300 border border-cyan-500/40 py-2 rounded text-xs tracking-wider transition">启动侦察</button>
+                                <p class="text-[9px] text-slate-600">DuckDuckGo 社交/贸易/联系人 3 路并行搜索</p>
+                                <div id="recon-progress" class="hidden">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span id="recon-stage-label" class="text-[10px] text-cyan-400">初始化...</span>
+                                        <span id="recon-progress-pct" class="text-[10px] text-slate-500">0%</span>
+                                    </div>
+                                    <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                        <div id="recon-progress-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-500" style="width:0%"></div>
+                                    </div>
+                                    <div class="flex justify-between mt-1">
+                                        <span id="stage-1-label" class="text-[9px] text-slate-500">社交探测</span>
+                                        <span id="stage-2-label" class="text-[9px] text-slate-500">贸易历史</span>
+                                        <span id="stage-3-label" class="text-[9px] text-slate-500">联系人挖掘</span>
+                                    </div>
+                                </div>
+                                <div id="recon-filter-region" class="flex gap-1 flex-wrap">
+                                    <button onclick="startRecon('中东')" class="border border-slate-600/50 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/30 px-2 py-0.5 rounded text-[9px] transition">中东</button>
+                                    <button onclick="startRecon('东南亚')" class="border border-slate-600/50 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/30 px-2 py-0.5 rounded text-[9px] transition">东南亚</button>
+                                    <button onclick="startRecon('非洲')" class="border border-slate-600/50 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/30 px-2 py-0.5 rounded text-[9px] transition">非洲</button>
+                                    <button onclick="startRecon('南美')" class="border border-slate-600/50 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/30 px-2 py-0.5 rounded text-[9px] transition">南美</button>
+                                    <button onclick="startRecon('中亚')" class="border border-slate-600/50 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/30 px-2 py-0.5 rounded text-[9px] transition">中亚</button>
+                                    <button onclick="startRecon('欧洲')" class="border border-slate-600/50 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/30 px-2 py-0.5 rounded text-[9px] transition">欧洲</button>
+                                </div>
                             </div>
                         </div>
 
@@ -352,15 +388,16 @@
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-red-400 text-sm font-bold">地缘冲突与货运预警</h3>
                     <div class="flex items-center gap-2">
-                        <button disabled class="border border-slate-700/50 text-slate-600 px-2 py-1 rounded text-[10px] cursor-not-allowed">放大</button>
-                        <button disabled class="border border-slate-700/50 text-slate-600 px-3 py-1 rounded text-[11px] cursor-not-allowed">刷新</button>
+                        <button onclick="expandGeoAlert()" class="text-[10px] text-slate-400 hover:text-cyan-300 border border-slate-500/40 px-2 py-0.5 rounded transition">放大</button>
+                        <button onclick="refreshGeoAlert()" class="text-[10px] text-rose-400 hover:text-rose-300 border border-rose-500/30 px-3 py-0.5 rounded transition">刷新</button>
                     </div>
                 </div>
-                <div class="flex flex-col items-center justify-center py-8">
-                    <div class="w-10 h-10 rounded-full border-2 border-slate-700 flex items-center justify-center mb-3">
-                        <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                    </div>
-                    <p class="text-slate-600 text-[11px] text-center max-w-xs leading-relaxed">因AI联网功能维护，暂停使用</p>
+                <div id="geo-alert-container">
+                    <div class="text-xs text-slate-500 py-4 text-center">点击刷新按钮获取最新预警</div>
+                </div>
+                <div class="flex justify-between items-center mt-3">
+                    <span id="geo-alert-time" class="text-[9px] text-slate-600">等待刷新...</span>
+                    <span class="text-[9px] text-slate-600">DuckDuckGo 实时搜索 · DeepSeek 交叉验证</span>
                 </div>
             </div>
 
@@ -377,9 +414,36 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-29 16:27:56" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-30 10:21:17" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
+    </div>
+
+    <!-- ======== 严正声明 模态框 ======== -->
+    <div id="disclaimer-modal" class="hidden fixed inset-0 z-[999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="relative max-w-xl w-full bg-slate-900 rounded-xl border border-amber-500/30 p-6">
+            <button onclick="closeDisclaimer()" class="absolute top-3 right-3 text-slate-400 hover:text-white text-xl leading-none w-8 h-8 flex items-center justify-center rounded hover:bg-slate-800 transition">&times;</button>
+            <h3 class="text-sm font-bold text-amber-400 mb-5 tracking-widest flex items-center gap-2">⚠️ 严正声明：实时情报审计与风险提示</h3>
+            <div class="space-y-4 text-[12px] leading-relaxed text-slate-300">
+                <div class="bg-black/40 border border-amber-500/20 rounded-lg p-3">
+                    <p class="font-bold text-amber-300 mb-1">AI 局限性确认</p>
+                    <p>当前市面上不存在 100% 准确的 AI 实体。AI 可能会以极具说服力的语气生成虚假事实（幻觉）。</p>
+                </div>
+                <div class="bg-black/40 border border-amber-500/20 rounded-lg p-3">
+                    <p class="font-bold text-amber-300 mb-1">数据源污染</p>
+                    <p>由于 2026 年全网存在大量由算法生成的噪声及冲突信息，系统抓取的原始数据可能包含滞后、夸张或误导内容。</p>
+                </div>
+                <div class="bg-black/40 border border-amber-500/20 rounded-lg p-3">
+                    <p class="font-bold text-amber-300 mb-1">人机协作原则</p>
+                    <p>本板块生成的背调及风险评估仅作为辅助参考，不具备法律效力或最终决策依据。</p>
+                </div>
+                <div class="bg-black/40 border border-rose-500/30 rounded-lg p-3">
+                    <p class="font-bold text-rose-300 mb-1">强制核实</p>
+                    <p>涉及资金支付、合同签订及航路变更等重大商业决策时，必须经由人工通过官方渠道（如船司官网、银行信保）二次筛选与核实。</p>
+                </div>
+            </div>
+            <button onclick="closeDisclaimer()" class="mt-5 w-full bg-amber-600/40 hover:bg-amber-600/60 text-amber-300 border border-amber-500/40 py-2 rounded text-xs tracking-wider transition font-bold">我已了解</button>
+        </div>
     </div>
 
     <!-- ======== 放大模态框 ======== -->
@@ -483,7 +547,7 @@
                 return JSON.parse(jsonMatch[0]);
             },
 
-            // 快速分析：Eyes 获取数据 → Brain 分析 → 返回结果
+            // 快速分析：Eyes（DuckDuckGo）获取数据 → Brain 分析 → 返回结果
             async eyesAndBrain(searchQuery, promptBuilder, temperature) {
                 var searchResult = await tavilySearch(searchQuery);
                 var searchContext = '';
@@ -544,16 +608,16 @@
             loadCachedGeoAlerts();
             // 加载历史汇率折线图
             fetchHistoricalRates();
-            // 诊断：页面加载后测试 Tavily API（如有密钥）
+            // 诊断：页面加载后测试 webSearch（DDG → 可选 Tavily 后备）
             setTimeout(function() {
                 var tk = getTavilyKey();
                 if (tk) {
                     tavilySearch('crane export 2026').then(function(r) {
-                        if (r && r.results) console.log('[诊断] Tavily API 测试通过,', r.results.length, '条结果');
-                        else console.log('[诊断] Tavily API 测试返回空');
+                        if (r && r.results) console.log('[诊断] webSearch 测试通过,', r.results.length, '条结果');
+                        else console.log('[诊断] webSearch 测试返回空');
                     });
                 } else {
-                    console.log('[诊断] Tavily 密钥为空，跳过测试');
+                    console.log('[诊断] 无 Tavily 密钥，仅使用 DuckDuckGo');
                 }
             }, 3000);
         });
@@ -829,21 +893,24 @@
                 <div class="flex flex-col items-center justify-center h-full text-cyan-400 text-xs animate-pulse">
                     <div class="w-12 h-12 border-4 border-slate-800 border-t-cyan-500 rounded-full animate-spin mb-6 shadow-[0_0_15px_rgba(6,182,212,0.5)]"></div>
                     <p class="mb-2 tracking-widest text-sm">正在搜集实时情报...</p>
-                    <p class="text-[10px] text-slate-500">Tavily 实时搜索 → DeepSeek 深度分析</p>
+                    <p class="text-[10px] text-slate-500">DuckDuckGo 实时搜索 → DeepSeek 深度分析</p>
                 </div>`;
 
-            // Step 1: Tavily Search for real data
+            // Step 1: DuckDuckGo 实时搜索
             var searchContext = '';
             var sourceLinks = '';
+            var searchStatus = '未连接'; // 未连接 / 实时搜索 / AI知识库
             try {
                 const bizQueries = [
                     '"' + name + '" company profile ' + (industry || ''),
                     '"' + name + '" ' + (country || '') + ' crane heavy machinery',
                     '"' + name + '" financial risk import export 2026',
+                    '"' + name + '" ' + (country || '') + ' business',
+                    (name) + ' ' + (industry || '') + ' manufacturer supplier'
                 ];
                 const allResults = [];
                 for (const q of bizQueries) {
-                    const res = await tavilySearch(q);
+                    const res = await tavilySearch(q, { max_results: 8 });
                     if (res && res.results) allResults.push(...res.results);
                 }
                 searchContext = allResults.slice(0, 20).map(function(r) {
@@ -852,13 +919,15 @@
                 sourceLinks = allResults.slice(0, 8).map(function(r) {
                     return '<a href="' + (r.url || '').replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" class="text-[9px] text-cyan-500 hover:text-cyan-300 underline underline-offset-2 truncate block max-w-full">' + (r.title || r.url).slice(0, 60) + '</a>';
                 }).join('');
+                if (allResults.length > 0) searchStatus = '实时搜索';
             } catch(e) {
                 console.warn('[背调] Tavily搜索异常:', e.message);
             }
+            if (searchStatus === '未连接' && !searchContext) searchStatus = 'AI知识库';
 
             const promptText = `
                     ${getDatePrefix()}
-                    以下是从Tavily实时搜索到的关于"${name}"的商业情报摘要，请基于这些真实数据进行分析，不要编造：
+                    ${searchStatus === '实时搜索' ? '以下是从DuckDuckGo实时搜索到的关于"' + name + '"的商业情报摘要，请基于这些真实数据进行分析，不要编造：' : '以下分析将基于你训练数据中对"' + name + '"的认知。注意：实时搜索引擎暂未连接，请注明数据局限性。'}
 
                     ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识分析并注明数据局限性）'}
 
@@ -874,8 +943,8 @@
                     6. 文化背景：对方公司所在地区的宗教信仰、使用语言
 
                     【核心规则】：
-                    1. 验真逻辑：如果用户输入的是类似"cherry"、"123"、"aaa"等毫无意义的词汇，或者完全不足以支撑分析，请将 is_valid 设为 false。
-                    2. 如果数据有效，请给出长篇幅的深度分析。
+                    1. 验真逻辑：如果用户输入的是类似"123"、"aaa"等毫无意义的词汇，或者完全不足以支撑分析，请将 is_valid 设为 false。注意：只要是看起来像真实公司名的输入（即使是生僻的中文或英文名），都视为有效，应基于你的知识库进行分析。
+                    2. 即使搜索结果较少，也要基于你训练数据中对该实体的认知给出深度分析，并在分析中注明"搜索数据有限，以下分析基于公开常识"。
                     3. 【自我怀疑机制】如果搜索到的信息中存在明显矛盾或逻辑极其反常的断言，请在结论中标注 [存疑] 并说明矛盾点。
 
                     【必须严格返回以下JSON格式（不要 markdown 标记）】：
@@ -948,7 +1017,7 @@
                             <p class="text-cyan-400 font-bold text-xs tracking-wide">合作建议：${aiResult.suggestion || ''}</p>
                             <p class="text-slate-300 text-[11px] italic">${aiResult.conclusion || ''}</p>
                         </div>
-                        ${sourceLinks ? '<div class="shrink-0 pt-3 mt-2 border-t border-slate-700/50"><p class="text-[9px] text-slate-600 mb-1 tracking-wider">数据源（Tavily）</p><div class="flex flex-wrap gap-x-3 gap-y-0.5">' + sourceLinks + '</div></div>' : ''}
+                        ${sourceLinks ? '<div class="shrink-0 pt-3 mt-2 border-t border-slate-700/50"><p class="text-[9px] text-slate-600 mb-1 tracking-wider">数据源（DuckDuckGo）</p><div class="flex flex-wrap gap-x-3 gap-y-0.5">' + sourceLinks + '</div></div>' : '<div class="shrink-0 pt-3 mt-2 border-t border-slate-700/50 text-center"><span class="text-[9px] text-amber-500/60">' + (searchStatus === 'AI知识库' ? '⚠ 搜索引擎未连接，分析基于 AI 知识库' : '') + '</span></div>'}
                     </div>`;
             } catch (error) {
                 console.error(error);
@@ -1021,7 +1090,7 @@
 
                 var prompt = '你是一个新闻核查员，专门核查地缘政治新闻的真实性和时效性。\n\n' +
                     '【日期锚定】今天是 2026 年 4 月 29 日。所有事件必须基于当前日期判断时效性。\n\n' +
-                    '请严格核实以下信息：\n标题：' + a.title + '\n内容：' + a.detail + '\n发布日期：' + (a.date || '未知') + '\n\n以下是从Tavily实时搜索到的相关结果：\n' + (searchCtx || '无搜索结果') + '\n\n' +
+                    '请严格核实以下信息：\n标题：' + a.title + '\n内容：' + a.detail + '\n发布日期：' + (a.date || '未知') + '\n\n以下是从DuckDuckGo实时搜索到的相关结果：\n' + (searchCtx || '无搜索结果') + '\n\n' +
                     '【自我怀疑机制】如果该消息声称的事件极其反常（如战争爆发、政策剧变），而搜索结果中缺乏多个权威来源证实，请判定为 unverified。\n\n' +
                     '返回纯JSON：{"status":"verified","reason":"简短原因（20字）","source":"来源网址"} 或 {"status":"unverified","reason":"..."} 或 {"status":"zombie","reason":"此新闻是X年前的旧闻被重新传播"}。verified=已核实为最新真实新闻，unverified=无法找到官方来源证实，zombie=过时旧闻被重新翻出。';
                 var result = await Brain.ask(prompt, 0.3);
@@ -1044,7 +1113,7 @@
             container.innerHTML = '<div class="text-xs text-slate-500 animate-pulse py-6 text-center">正在搜索最新地缘情报...</div>';
 
             try {
-                // Step 1: Tavily Search for recent geopolitical events affecting crane exports
+                // Step 1: DuckDuckGo 实时搜索地缘政治事件
                 const geoQueries = [
                     'crane export shipping disruption 2026',
                     'geopolitical risk heavy machinery import tariff 2026',
@@ -1054,9 +1123,9 @@
                 ];
                 const allResults = [];
                 for (const q of geoQueries) {
-                    const res = await tavilySearch(q);
+                    const res = await tavilySearch(q, { max_results: 8 });
                     if (res && res.results) allResults.push(...res.results);
-                    if (allResults.length >= 20) break;
+                    if (allResults.length >= 30) break;
                 }
                 const searchContext = allResults.slice(0, 20).map(function(r) {
                     return '- [' + r.title + '](' + r.url + ') ' + (r.content || '').slice(0, 200);
@@ -1067,7 +1136,7 @@
 
 【日期锚定】今天是 2026 年 4 月 29 日。所有事件必须基于当前日期判断时效性。
 
-以下是从Tavily实时搜索到的近期相关新闻摘要（仅限权威新闻源和海运专业网站），请基于这些真实数据进行分析，不要编造：
+以下是从DuckDuckGo实时搜索到的近期相关新闻摘要（仅限权威新闻源和海运专业网站），请基于这些真实数据进行分析，不要编造：
 
 ${searchContext || '（暂未搜索到相关新闻，请基于最新常识回答）'}
 
@@ -1211,20 +1280,21 @@ ${searchContext || '（暂未搜索到相关新闻，请基于最新常识回答
                 <div class="flex flex-col items-center justify-center h-full text-amber-400 text-xs animate-pulse">
                     <div class="w-12 h-12 border-4 border-slate-800 border-t-amber-500 rounded-full animate-spin mb-6 shadow-[0_0_15px_rgba(245,158,11,0.5)]"></div>
                     <p class="mb-2 tracking-widest text-sm">正在搜集实时情报...</p>
-                    <p class="text-[10px] text-slate-500">Tavily 实时搜索 → DeepSeek 风险分析</p>
+                    <p class="text-[10px] text-slate-500">DuckDuckGo 实时搜索 → DeepSeek 风险分析</p>
                 </div>`;
 
             try {
-                // Step 1: Tavily Search for real country risk data
+                // Step 1: DuckDuckGo 实时搜索国家风险数据
                 const countryQueries = [
                     country + ' crane heavy machinery import tariff 2026',
                     country + ' political risk economic outlook 2026',
                     country + ' port infrastructure logistics risk 2026',
                     country + ' trade sanctions export regulation 2026',
+                    country + ' business culture language communication',
                 ];
                 const allResults = [];
                 for (const q of countryQueries) {
-                    const res = await tavilySearch(q);
+                    const res = await tavilySearch(q, { max_results: 8 });
                     if (res && res.results) allResults.push(...res.results);
                 }
                 const searchContext = allResults.slice(0, 20).map(function(r) {
@@ -1236,7 +1306,7 @@ ${searchContext || '（暂未搜索到相关新闻，请基于最新常识回答
 
                 const response = await Brain.ask(`你是一个地缘政治与经济风险分析师，专门服务起重机出口行业。
 ${getDatePrefix()}
-以下是从Tavily实时搜索到的关于"${country}"的情报摘要，请基于这些真实数据进行分析，不要编造：
+以下是从DuckDuckGo实时搜索到的关于"${country}"的情报摘要，请基于这些真实数据进行分析，不要编造：
 
 ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识分析并注明数据局限性）'}
 
@@ -1318,7 +1388,7 @@ ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识
                         <div class="shrink-0 pt-4 mt-2 border-t border-slate-700">
                             <p class="text-slate-300 text-[11px] italic">${result.conclusion || ''}</p>
                         </div>
-                        ${countrySourceLinks ? '<div class="shrink-0 pt-3 border-t border-slate-700/50"><p class="text-[9px] text-slate-600 mb-1 tracking-wider">数据源（Tavily）</p><div class="flex flex-wrap gap-x-3 gap-y-0.5">' + countrySourceLinks + '</div></div>' : ''}
+                        ${countrySourceLinks ? '<div class="shrink-0 pt-3 border-t border-slate-700/50"><p class="text-[9px] text-slate-600 mb-1 tracking-wider">数据源（DuckDuckGo）</p><div class="flex flex-wrap gap-x-3 gap-y-0.5">' + countrySourceLinks + '</div></div>' : ''}
                     </div>`;
             } catch (error) {
                 console.error(error);
@@ -1454,6 +1524,12 @@ ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识
         }
         function closeSettings() {
             document.getElementById('settings-modal').classList.add('hidden');
+        }
+        function openDisclaimer() {
+            document.getElementById('disclaimer-modal').classList.remove('hidden');
+        }
+        function closeDisclaimer() {
+            document.getElementById('disclaimer-modal').classList.add('hidden');
         }
 
         // ==========================================
@@ -2239,9 +2315,92 @@ ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识
         }
 
         // ==========================================
-        // Tavily Search API
+        // DuckDuckGo Search (免费免密钥，无需信用卡)
         // ==========================================
-        async function tavilySearch(query, opts) {
+        async function duckDuckGoSearch(query, opts) {
+            opts = opts || {};
+            var maxResults = opts.max_results || 10;
+            if (!query || query.length < 3) return null;
+
+            var searchUrl = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query);
+
+            // 尝试多种方式获取搜索结果
+            var html = null;
+            var searchUrlEncoded = encodeURIComponent(searchUrl);
+            var attempts = [
+                // 方式1: api.allorigins.win (JSON 包装)
+                async function() {
+                    var r = await fetch('https://api.allorigins.win/get?url=' + searchUrlEncoded);
+                    if (!r.ok) throw new Error('status ' + r.status);
+                    var d = await r.json();
+                    return d && d.contents;
+                },
+                // 方式2: api.allorigins.win (raw 模式)
+                async function() {
+                    var r = await fetch('https://api.allorigins.win/raw?url=' + searchUrlEncoded);
+                    if (!r.ok) throw new Error('status ' + r.status);
+                    return await r.text();
+                },
+                // 方式3: 直连 (某些浏览器/环境允许跨域)
+                async function() {
+                    var r = await fetch(searchUrl, { mode: 'cors' });
+                    if (!r.ok) throw new Error('status ' + r.status);
+                    return await r.text();
+                },
+                // 方式4: cloudflare workers 代理
+                async function() {
+                    var r = await fetch('https://corsproxy.eramoyal.workers.dev/?url=' + searchUrlEncoded);
+                    if (!r.ok) throw new Error('status ' + r.status);
+                    var d = await r.json();
+                    return d && d.contents;
+                }
+            ];
+
+            for (var ai = 0; ai < attempts.length; ai++) {
+                try {
+                    var maybeHtml = await attempts[ai]();
+                    if (maybeHtml && maybeHtml.length > 100) { html = maybeHtml; break; }
+                } catch(e) { console.warn('[DuckDuckGo] 方式' + ai + '失败:', e.message); }
+            }
+            if (!html) {
+                console.warn('[DuckDuckGo] 所有搜索方式均失败，搜索不可用');
+                return null;
+            }
+
+            try {
+                var results = [];
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+
+                // DuckDuckGo HTML 搜索结果结构
+                var items = doc.querySelectorAll('.result__body');
+                for (var di = 0; di < items.length && results.length < maxResults; di++) {
+                    var titleLink = items[di].querySelector('.result__title a');
+                    var snippet = items[di].querySelector('.result__snippet');
+                    if (titleLink) {
+                        var href = titleLink.getAttribute('href') || '';
+                        // 从 DuckDuckGo 跳转链接中提取真实 URL
+                        var realUrl = href;
+                        var uddgMatch = href.match(/uddg=([^&]+)/);
+                        if (uddgMatch) realUrl = decodeURIComponent(uddgMatch[1]);
+                        results.push({
+                            title: (titleLink.textContent || '').trim(),
+                            url: realUrl,
+                            content: snippet ? (snippet.textContent || '').trim() : ''
+                        });
+                    }
+                }
+                return { results: results };
+            } catch(e) {
+                console.warn('[DuckDuckGo] 搜索失败:', e.message);
+                return null;
+            }
+        }
+
+        // ==========================================
+        // Tavily Search API (后备搜索引擎)
+        // ==========================================
+        async function _tavilyApi(query, opts) {
             if (!query || query.length < 3) return null;
             var apiKey = getTavilyKey();
             if (!apiKey) {
@@ -2303,7 +2462,39 @@ ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识
         }
 
         // ==========================================
-        // Accio-Killer: 交互式侦察引擎（Tavily + DeepSeek）
+        // webSearch: 统一搜索入口
+        // DuckDuckGo（主）→ Tavily（备）
+        // ==========================================
+        async function webSearch(query, opts) {
+            opts = opts || {};
+            // 1) 先尝试 DuckDuckGo（免费，无需密钥）
+            console.log('[webSearch] DDG搜索:', query.slice(0, 60));
+            var ddgResult = await duckDuckGoSearch(query, opts);
+            if (ddgResult && ddgResult.results && ddgResult.results.length > 0) {
+                console.log('[webSearch] DDG成功:', ddgResult.results.length, '条');
+                return ddgResult;
+            }
+            // 2) 后备：Tavily（如有密钥）
+            var tvKey = getTavilyKey();
+            if (tvKey) {
+                console.log('[webSearch] Tavily后备:', query.slice(0, 60));
+                var tvResult = await _tavilyApi(query, opts);
+                if (tvResult && tvResult.results && tvResult.results.length > 0) {
+                    console.log('[webSearch] Tavily成功:', tvResult.results.length, '条');
+                    return tvResult;
+                }
+            }
+            // 3) 都失败
+            console.warn('[webSearch] 所有搜索引擎均无法连接');
+            return null;
+        }
+        window.webSearch = webSearch;
+        // 桥接：所有调用 tavilySearch() 的旧模块自动走 webSearch（DDG → Tavily 后备）
+        async function tavilySearch(query, opts) { return webSearch(query, opts); }
+        window.tavilySearch = webSearch;
+
+        // ==========================================
+        // Accio-Killer: 交互式侦察引擎（DDG + DeepSeek）
         // ==========================================
         const RECON_STATE = {
             phase: 'idle', name: '', company: '', region: '', industry: '',
@@ -2388,10 +2579,10 @@ ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识
             diag.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-cyan-400 text-xs animate-pulse">
                 <div class="w-12 h-12 border-4 border-slate-800 border-t-cyan-500 rounded-full animate-spin mb-6"></div>
                 <p class="tracking-widest text-sm">ACCIO-KILLER 激活 [${S.industry}]</p>
-                <p class="text-[10px] text-slate-500 mt-2">3 路并行搜索 · Tavily 实时扫描 · 正则嗅探</p></div>`;
+                <p class="text-[10px] text-slate-500 mt-2">3 路并行搜索 · DuckDuckGo 实时扫描 · 正则嗅探</p></div>`;
 
             try {
-                // ======== 3 路并行 Tavily 搜索 ========
+                // ======== 3 路并行 DuckDuckGo 搜索 ========
                 reconStatus(5, '社交探测 → 贸易历史 → 联系人挖掘');
                 const qSocial = S.precisionMode
                     ? `site:facebook.com OR site:linkedin.com "${S.name}" "${S.company}" (phone OR contact) (起重机 OR 工业)`
@@ -2400,9 +2591,9 @@ ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识
                 const qContact = `"${S.name||''}" "${S.company||''}" (WhatsApp OR 手机号码 OR phone OR mobile OR "+") (起重机 OR 工业)`;
 
                 const [resSocial, resTrade, resContact] = await Promise.all([
-                    tavilySearch(qSocial),
-                    tavilySearch(qTrade),
-                    tavilySearch(qContact)
+                    tavilySearch(qSocial, { max_results: 10 }),
+                    tavilySearch(qTrade, { max_results: 10 }),
+                    tavilySearch(qContact, { max_results: 10 })
                 ]);
 
                 S.socialItems = (resSocial&&resSocial.results)||[];
@@ -2451,7 +2642,7 @@ ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识
                     if(!emailMap.has(e.email)) emailMap.set(e.email,{email:e.email,sources:[]});
                     emailMap.get(e.email).sources.push({url:e.source,label:e.sourceLabel});
                 });
-                rawEmails.forEach(e=>{if(!emailMap.has(e)) emailMap.set(e,{email:e,sources:[{url:'',label:'Tavily'}]});});
+                rawEmails.forEach(e=>{if(!emailMap.has(e)) emailMap.set(e,{email:e,sources:[{url:'',label:'DuckDuckGo'}]});});
                 const merged = Array.from(emailMap.values());
                 merged.forEach(e=>{e.score=scoreCandidate(e,S.regionCfg,S.company);});
                 merged.sort((a,b)=>(b.score||0)-(a.score||0));
@@ -2513,7 +2704,7 @@ ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识
                                 <button onclick="finalSynthesis()" class="bg-emerald-600/40 hover:bg-emerald-600/60 text-emerald-300 border border-emerald-500/40 px-3 py-1 rounded text-[10px] tracking-wider transition">确认 → 合成报告</button>
                             </div>
                         </div>
-                        <p class="text-[9px] text-slate-500 mt-1">域: ${S.detectedDomain||'未发现'} | Tavily 实时搜索 | 精准模式: ${S.precisionMode?'开':'关'}</p>
+                        <p class="text-[9px] text-slate-500 mt-1">域: ${S.detectedDomain||'未发现'} | DuckDuckGo 实时搜索 | 精准模式: ${S.precisionMode?'开':'关'}</p>
                     </div>
 
                     <div class="flex-1 overflow-y-auto space-y-3 pr-1">
@@ -2608,8 +2799,8 @@ ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识
                 const newQuery = cmd.new_query || msg;
                 addChatMessage('system', '🔄 调整搜索: '+(cmd.reason||'')+'<br><span class="text-[9px] text-slate-500">查询: '+newQuery.slice(0,120)+'…</span>');
 
-                // 重新查询 Tavily
-                const newResult = await tavilySearch(newQuery);
+                // 重新查询（webSearch: DDG → Tavily）
+                const newResult = await tavilySearch(newQuery, { max_results: 10 });
                 const newItems = (newResult&&newResult.results)||[];
                 if (newItems.length > 0) {
                     S.allItems = [...S.allItems, ...newItems];
@@ -2906,7 +3097,7 @@ ${adjHistory}
                                 : '';
                         }).join('');
                         const srcDisplay = '<div class="leading-tight">' +
-                            (srcLinks || '<span class="text-slate-500 text-[9px]">Tavily</span>') +
+                            (srcLinks || '<span class="text-slate-500 text-[9px]">DuckDuckGo</span>') +
                             snippetDisplay +
                             '</div>';
 
@@ -3263,9 +3454,9 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
             'btn-rate': '汇率刷新… 其实我看不太懂，但刷了就安心。',
             'btn-geo': '预警刷新中，世界和平靠你了。',
             'settings': '改设置？Key填好了没就在这瞎转悠。',
-            'noKey': '指挥官，我的大脑（<span class="highlight">DeepSeek</span>）和我的眼睛（<span class="highlight">Tavily</span>）都需要工作！右上角填一下！',
-            'noTavily': '我可以思考，但我看不到实时网络。<span class="highlight">请提供Tavily密钥</span>（右上角TV框）。',
-            'allReady': '系统已上线！<span class="highlight">2026年全球情报雷达</span>已激活。',
+            'noKey': '指挥官，我的大脑（<span class="highlight">DeepSeek</span>）需要工作！右上角填一下DS密钥。<br><span class="text-[9px] text-slate-500">眼睛（DuckDuckGo）已就绪，免费免密钥。</span>',
+            'noTavily': 'Tavily密钥未填，后备搜索不可用。<br><span class="text-[9px] text-slate-500">主搜索（DuckDuckGo）免费运行中。</span>',
+            'allReady': '系统已上线！<span class="highlight">DuckDuckGo</span> 全球索引已连接，<span class="highlight">DeepSeek</span> 大脑就绪。',
             welcome: '哟，回来了？<span class="highlight">德德</span>已就位，随时待命。',
             processing: [
                 '正在翻箱倒柜找线索…',
@@ -3391,27 +3582,45 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
             var beijing = new Date(now.getTime() + (now.getTimezoneOffset() + 480) * 60000);
             var timeStr = beijing.getFullYear() + '年' + (beijing.getMonth()+1) + '月' + beijing.getDate() + '日 ' +
                 ('0' + beijing.getHours()).slice(-2) + ':' + ('0' + beijing.getMinutes()).slice(-2) + ':' + ('0' + beijing.getSeconds()).slice(-2);
-            var systemPrompt = '【日期锚定】今天北京时间是 ' + timeStr + '（UTC+8，公历' + beijing.getFullYear() + '年' + (beijing.getMonth()+1) + '月' + beijing.getDate() + '日）。所有时效性信息必须基于此日期判断。\n\n你是德德，一台专注于起重机海外贸易的AI助手。你服务于一家中国起重机出口公司，主要帮助业务团队：分析海外买家背景和信用风险；评估汇率、外汇管制、信用证等结算问题；提供物流建议包括国际局势对航运的影响、港口状况、HS编码归类；制定客户谈判策略和商务切入方案；解答出口合规和目标市场准入条件。\n\n你可以通过联网搜索获取实时信息。回答时效性问题时必须基于联网搜索结果，不要依赖训练数据中的过时信息。\n\n**每次回答必须附上信息来源链接。** 在回答末尾另起一行列出你参考的网页标题和URL，格式为：来源：[标题](URL)。至少提供1条来源，最多3条。如果数据来自联网搜索，引用搜索结果中的实际链接。\n\n【自我怀疑机制】如果你检索到的信息中存在逻辑极其反常或颠覆性的消息（如战争爆发、重大政策剧变），但搜索结果中缺乏多个权威来源交叉证实，请标注 [待核实] 并说明信息来源局限性。\n\n你的风格：专业、冷静、直接，用简洁的中文回答，每次回答控制在100字以内，保持干练。可以带一点冷幽默，但整体保持专业。';
-            var apiMessages = [{ role: 'system', content: systemPrompt }];
-            for (var i = 0; i < chatState.messages.length; i++) {
-                var m = chatState.messages[i];
-                apiMessages.push({ role: m.role, content: m.text });
-            }
-            apiMessages.push({ role: 'user', content: userText });
 
-            var body = { model: AI_MODEL, messages: apiMessages, temperature: 0.7, max_tokens: 500, enable_search: true };
+            // Step 1: 用用户的问题执行联网搜索
+            return tavilySearch(userText, { max_results: 8 }).then(function(searchResult) {
+                var searchContext = '';
+                var searchSources = [];
+                if (searchResult && searchResult.results && searchResult.results.length > 0) {
+                    searchContext = searchResult.results.slice(0, 8).map(function(r) {
+                        if (r.url) searchSources.push({ title: r.title || '', url: r.url });
+                        return '- [' + (r.title || '') + '](' + (r.url || '') + ') ' + ((r.content || '').slice(0, 300));
+                    }).join('\n');
+                }
 
-            return fetch(AI_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-                body: JSON.stringify(body)
-            }).then(function(r) {
-                if (!r.ok) throw new Error('API 请求失败');
-                return r.json();
-            }).then(function(data) {
-                var reply = data.choices[0].message.content.trim();
-                var cites = data.citations || null;
-                addMessage('assistant', reply, cites);
+                var systemPrompt = '【日期锚定】今天北京时间是 ' + timeStr + '（UTC+8，公历' + beijing.getFullYear() + '年' + (beijing.getMonth()+1) + '月' + beijing.getDate() + '日）。所有时效性信息必须基于此日期判断。\n\n' +
+                    '你是德德，一台专注于起重机海外贸易的AI助手。你服务于一家中国起重机出口公司，主要帮助业务团队：分析海外买家背景和信用风险；评估汇率、外汇管制、信用证等结算问题；提供物流建议包括国际局势对航运的影响、港口状况、HS编码归类；制定客户谈判策略和商务切入方案；解答出口合规和目标市场准入条件。\n\n' +
+                    (searchContext ? '以下是DuckDuckGo实时搜索到的与用户问题相关的最新信息，请基于这些真实数据回答，不要编造：\n\n' + searchContext + '\n\n' : '（联网搜索未返回结果，请基于你的训练知识回答，并注明数据可能存在滞后。）\n\n') +
+                    '**每次回答必须附上信息来源链接。** 在回答末尾列出你参考的网页标题和URL，格式为：来源：[标题](URL)。如果数据来自联网搜索结果，引用上面的实际链接。\n\n' +
+                    '【自我怀疑机制】如果你检索到的信息中存在逻辑极其反常或颠覆性的消息（如战争爆发、重大政策剧变），但搜索结果中缺乏多个权威来源交叉证实，请标注 [待核实] 并说明信息来源局限性。\n\n' +
+                    '你的风格：专业、冷静、直接，用简洁的中文回答，每次回答控制在100字以内，保持干练。可以带一点冷幽默，但整体保持专业。';
+
+                var apiMessages = [{ role: 'system', content: systemPrompt }];
+                for (var i = 0; i < chatState.messages.length; i++) {
+                    var m = chatState.messages[i];
+                    apiMessages.push({ role: m.role, content: m.text });
+                }
+                apiMessages.push({ role: 'user', content: userText });
+
+                var body = { model: AI_MODEL, messages: apiMessages, temperature: 0.7, max_tokens: 500 };
+
+                return fetch(AI_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+                    body: JSON.stringify(body)
+                }).then(function(r) {
+                    if (!r.ok) throw new Error('API 请求失败');
+                    return r.json();
+                }).then(function(data) {
+                    var reply = data.choices[0].message.content.trim();
+                    addMessage('assistant', reply, searchSources);
+                });
             }).catch(function(err) {
                 addMessage('assistant', '[系统错误] ' + err.message);
             });
@@ -3486,7 +3695,7 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
                 }
                 if (el.id === 'tab-biz-btn') return 'tab-biz';
                 if (el.id === 'tab-recon-btn') return 'tab-recon';
-                if (el.id === 'settings-modal' || el.id === 'expand-modal') return null;
+                if (el.id === 'settings-modal' || el.id === 'expand-modal' || el.id === 'disclaimer-modal') return null;
                 if (el.tagName === 'BUTTON' || el.tagName === 'A') {
                     // Check if inside a section
                     var parent = el;
@@ -3554,12 +3763,12 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
         function checkKeys() {
             var ds = !isApiKeyMissing();
             var tv = !isTavilyKeyMissing();
-            if (!ds && !tv) {
+            if (!ds) {
                 setState('sleep');
                 say(lines.noKey, 8000);
             } else if (ds && !tv) {
-                setState('deepseek');
-                say(lines.noTavily, 8000);
+                setState('idle');
+                say(lines.noTavily, 6000);
             } else {
                 setState('idle');
                 say(lines.allReady, 6000);
@@ -3598,17 +3807,10 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
                         say(lines.noKey, 6000);
                         return;
                     }
-                    // DeepSeek only, no Tavily → purple state, skip
-                    if (item.search && !isApiKeyMissing() && isTavilyKeyMissing()) {
-                        setState('deepseek');
-                        say(lines.noTavily, 6000);
-                        return;
-                    }
-
-                    // Processing state
-                    if (item.search && !isApiKeyMissing() && !isTavilyKeyMissing()) {
+                    // Processing state — DuckDuckGo handles search, Tavily is bonus
+                    if (item.search && !isApiKeyMissing()) {
                         setState('processing');
-                        say(pick(lines.processing), 15000);
+                        say('正在通过 DuckDuckGo 浏览全球索引… 正在过滤虚假信息…', 15000);
                     }
 
                     var result = orig.apply(self, args);
@@ -3672,24 +3874,21 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
     </div>
     <script>
         // Patch tavilySearch to show error bar on failure
-        var _origTavilySearch = window.tavilySearch;
-        if (_origTavilySearch) {
-            window.tavilySearch = function(query, opts) {
-                return _origTavilySearch(query, opts).then(function(result) {
-                    if (result === null && query) {
-                        // Check if there was an error logged
-                        var bar = document.getElementById('tavily-error-bar');
-                        var detail = document.getElementById('tavily-error-detail');
-                        if (bar && detail && localStorage.getItem('_lastTavilyError')) {
-                            detail.textContent = localStorage.getItem('_lastTavilyError');
-                            bar.classList.remove('hidden');
-                            setTimeout(function() { bar.classList.add('hidden'); }, 60000);
-                        }
+        var _origUserTavily = window.tavilySearch;
+        window.tavilySearch = function(query, opts) {
+            return _origUserTavily(query, opts).then(function(result) {
+                if (result === null && query) {
+                    var bar = document.getElementById('tavily-error-bar');
+                    var detail = document.getElementById('tavily-error-detail');
+                    if (bar && detail && localStorage.getItem('_lastTavilyError')) {
+                        detail.textContent = localStorage.getItem('_lastTavilyError');
+                        bar.classList.remove('hidden');
+                        setTimeout(function() { bar.classList.add('hidden'); }, 60000);
                     }
-                    return result;
-                });
-            };
-        }
+                }
+                return result;
+            });
+        };
     </script>
 </body>
 </html>
