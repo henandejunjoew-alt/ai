@@ -414,7 +414,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-30 11:09:43" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-30 11:32:13" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -482,15 +482,23 @@
         const AI_API_URL = "https://api.deepseek.com/v1/chat/completions";
         const AI_MODEL = "deepseek-chat";
         // Tavily source whitelist: only official news and maritime/trade specialist sites
-        const TAVILY_WHITELIST = [
-            'reuters.com', 'apnews.com', 'bloomberg.com',
-            'imo.org', 'lloydslist.com', 'marinetraffic.com', 'bimco.org',
-            'crisisgroup.org', 'cfr.org', 'chathamhouse.org',
-            'un.org', 'wto.org', 'europa.eu',
-            'mofcom.gov.cn', 'state.gov'
-        ];
-        // 地缘冲突专用 DDG site 过滤 — 只从这些域名搜索
-        const GEO_SITE_FILTER = '(site:imo.org OR site:lloydslist.com OR site:marinetraffic.com OR site:bimco.org OR site:crisisgroup.org OR site:cfr.org OR site:chathamhouse.org OR site:reuters.com OR site:apnews.com OR site:bloomberg.com OR site:un.org OR site:wto.org OR site:europa.eu OR site:mofcom.gov.cn OR site:state.gov)';
+        const TAVILY_WHITELIST = ['imo.org', 'lloydslist.com', 'reuters.com', 'apnews.com', 'bloomberg.com', 'un.org', 'mofcom.gov.cn', 'state.gov'];
+        // TFI 权威来源 site 过滤器（全局统一白名单）
+        const TFI_SITE_FILTER = '(site:imo.org OR site:lloydslist.com OR site:reuters.com OR site:apnews.com OR site:bloomberg.com OR site:un.org OR site:mofcom.gov.cn OR site:state.gov)';
+        const GEO_SITE_FILTER = TFI_SITE_FILTER;
+        // TFI 真实性审核系统提示
+        const AUTH_REVIEW = '你是一名高级情报官员。你的任务是从提供的片段中总结出已验证的事实。如果来源相互矛盾或看似人工智能的臆想，请将不一致之处标记给用户。';
+        // TFI 警告横幅
+        const WARNING_BANNER = '<div class="mt-4 pt-3 border-t border-amber-500/30"><p class="text-[9px] text-amber-500/80 text-center">⚠️ 人工智能准确性警告：没有任何人工智能能够做到 100% 准确。商业决策必须经过人工核实官方海事/贸易渠道的信息。</p></div>';
+        // TFI 统一搜索：DDG + site 过滤优先，Tavily 白名单后备
+        async function tfiSearch(query, opts) {
+            opts = opts || {};
+            var maxResults = opts.max_results || 5;
+            var dateRange = opts.date_range || 'd';
+            var result = await duckDuckGoSearch(query + ' ' + TFI_SITE_FILTER, { max_results: maxResults, date_range: dateRange });
+            if (result && result.results && result.results.length > 0) return result;
+            return await _tavilyApi(query, { max_results: maxResults, include_domains: TAVILY_WHITELIST });
+        }
         const TAVILY_BLACKLIST = [
             'facebook.com', 'twitter.com', 'x.com', 'instagram.com', 'linkedin.com',
             'tiktok.com', 'reddit.com', 'youtube.com', 'pinterest.com',
@@ -547,7 +555,7 @@
 
             // 快速分析：Eyes（DuckDuckGo）获取数据 → Brain 分析 → 返回结果
             async eyesAndBrain(searchQuery, promptBuilder, temperature) {
-                var searchResult = await tavilySearch(searchQuery);
+                var searchResult = await tfiSearch(searchQuery);
                 var searchContext = '';
                 if (searchResult && searchResult.results && searchResult.results.length > 0) {
                     searchContext = searchResult.results.slice(0, 15).map(function(r) {
@@ -610,7 +618,7 @@
             setTimeout(function() {
                 var tk = getTavilyKey();
                 if (tk) {
-                    tavilySearch('crane export 2026').then(function(r) {
+                    tfiSearch('crane export 2026').then(function(r) {
                         if (r && r.results) console.log('[诊断] webSearch 测试通过,', r.results.length, '条结果');
                         else console.log('[诊断] webSearch 测试返回空');
                     });
@@ -894,24 +902,22 @@
                     <p class="text-[10px] text-slate-500">DuckDuckGo 实时搜索 → DeepSeek 深度分析</p>
                 </div>`;
 
-            // Step 1: DuckDuckGo 实时搜索
+            // Step 1: TFI 搜索 — 仅从权威来源（site 白名单）获取信息
             var searchContext = '';
             var sourceLinks = '';
-            var searchStatus = '未连接'; // 未连接 / 实时搜索 / AI知识库
+            var searchStatus = '未连接';
             try {
                 const bizQueries = [
                     '"' + name + '" company profile ' + (industry || ''),
-                    '"' + name + '" ' + (country || '') + ' crane heavy machinery',
-                    '"' + name + '" financial risk import export 2026',
                     '"' + name + '" ' + (country || '') + ' business',
                     (name) + ' ' + (industry || '') + ' manufacturer supplier'
                 ];
                 const allResults = [];
                 for (const q of bizQueries) {
-                    const res = await tavilySearch(q, { max_results: 8 });
+                    const res = await tfiSearch(q, { max_results: 5 });
                     if (res && res.results) allResults.push(...res.results);
                 }
-                searchContext = allResults.slice(0, 20).map(function(r) {
+                searchContext = allResults.slice(0, 15).map(function(r) {
                     return '- [' + r.title + '](' + r.url + ') ' + (r.content || '').slice(0, 250);
                 }).join('\n');
                 sourceLinks = allResults.slice(0, 8).map(function(r) {
@@ -919,13 +925,15 @@
                 }).join('');
                 if (allResults.length > 0) searchStatus = '实时搜索';
             } catch(e) {
-                console.warn('[背调] Tavily搜索异常:', e.message);
+                console.warn('[背调] TFI搜索异常:', e.message);
             }
             if (searchStatus === '未连接' && !searchContext) searchStatus = 'AI知识库';
 
             const promptText = `
                     ${getDatePrefix()}
-                    ${searchStatus === '实时搜索' ? '以下是从DuckDuckGo实时搜索到的关于"' + name + '"的商业情报摘要，请基于这些真实数据进行分析，不要编造：' : '以下分析将基于你训练数据中对"' + name + '"的认知。注意：实时搜索引擎暂未连接，请注明数据局限性。'}
+                    ${AUTH_REVIEW}
+
+                    ${searchStatus === '实时搜索' ? '以下是通过权威来源（Reuters、Bloomberg、AP News、IMO、UN等）搜索到的关于"' + name + '"的商业情报摘要，请基于这些真实数据进行分析，不要编造：' : '以下分析将基于你训练数据中对"' + name + '"的认知。注意：权威来源搜索未连接，请注明数据局限性。'}
 
                     ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识分析并注明数据局限性）'}
 
@@ -941,9 +949,10 @@
                     6. 文化背景：对方公司所在地区的宗教信仰、使用语言
 
                     【核心规则】：
-                    1. 验真逻辑：如果用户输入的是类似"123"、"aaa"等毫无意义的词汇，或者完全不足以支撑分析，请将 is_valid 设为 false。注意：只要是看起来像真实公司名的输入（即使是生僻的中文或英文名），都视为有效，应基于你的知识库进行分析。
-                    2. 即使搜索结果较少，也要基于你训练数据中对该实体的认知给出深度分析，并在分析中注明"搜索数据有限，以下分析基于公开常识"。
-                    3. 【自我怀疑机制】如果搜索到的信息中存在明显矛盾或逻辑极其反常的断言，请在结论中标注 [存疑] 并说明矛盾点。
+                    1. 验真逻辑：如果用户输入的是类似"123"、"aaa"等毫无意义的词汇，或者完全不足以支撑分析，请将 is_valid 设为 false。
+                    2. 如果搜索结果中缺乏权威来源的财务或经营数据，请明确标注"公开信息有限，以下分析基于有限数据"。
+                    3. 【自我怀疑机制】如果搜索到的信息中存在明显矛盾或逻辑极其反常的断言，请标注【未经证实的传闻】并说明矛盾点。
+                    4. 如果这些网站上没有找到与目标公司相关的财务或经营信息，请注明"权威来源中未找到该实体的详细信息"。
 
                     【必须严格返回以下JSON格式（不要 markdown 标记）】：
                     {
@@ -1015,7 +1024,8 @@
                             <p class="text-cyan-400 font-bold text-xs tracking-wide">合作建议：${aiResult.suggestion || ''}</p>
                             <p class="text-slate-300 text-[11px] italic">${aiResult.conclusion || ''}</p>
                         </div>
-                        ${sourceLinks ? '<div class="shrink-0 pt-3 mt-2 border-t border-slate-700/50"><p class="text-[9px] text-slate-600 mb-1 tracking-wider">数据源（DuckDuckGo）</p><div class="flex flex-wrap gap-x-3 gap-y-0.5">' + sourceLinks + '</div></div>' : '<div class="shrink-0 pt-3 mt-2 border-t border-slate-700/50 text-center"><span class="text-[9px] text-amber-500/60">' + (searchStatus === 'AI知识库' ? '⚠ 搜索引擎未连接，分析基于 AI 知识库' : '') + '</span></div>'}
+                        ${sourceLinks ? '<div class="shrink-0 pt-3 mt-2 border-t border-slate-700/50"><p class="text-[9px] text-slate-600 mb-1 tracking-wider">权威来源</p><div class="flex flex-wrap gap-x-3 gap-y-0.5">' + sourceLinks + '</div></div>' : '<div class="shrink-0 pt-3 mt-2 border-t border-slate-700/50 text-center"><span class="text-[9px] text-amber-500/60">' + (searchStatus === 'AI知识库' ? '⚠ 权威来源搜索未连接，分析基于 AI 知识库' : '') + '</span></div>'}
+                        ${WARNING_BANNER}
                     </div>`;
             } catch (error) {
                 console.error(error);
@@ -1060,10 +1070,10 @@
                     </div>
                     <p class="text-slate-400 text-[10px] leading-relaxed">${a.detail}</p>
                     <div class="mt-2 flex flex-wrap gap-2">
-                        ${sourceUrl ? '<a href="' + sourceUrl.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:text-cyan-300 bg-cyan-900/20 border border-cyan-500/30 px-2.5 py-1 rounded transition">\u{1F517} ' + (function(){ try{var u=new URL(sourceUrl);return u.hostname.replace('www.','').slice(0,25);}catch(e){return sourceUrl.slice(0,25);} })() + '</a>' : ''}
+                        ${sourceUrl ? '<a href="' + sourceUrl.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:text-cyan-300 bg-cyan-900/20 border border-cyan-500/30 px-2.5 py-1 rounded transition">🔗 ' + (function(){ try{var u=new URL(sourceUrl);return u.hostname.replace('www.','').slice(0,25);}catch(e){return sourceUrl.slice(0,25);} })() + '</a>' : ''}
                     </div>
                 </div>`;
-            }).join('');
+            }).join('') + WARNING_BANNER;
         }
 
         async function verifyGeoAlert(idx, btnEl) {
@@ -1075,9 +1085,9 @@
             if (!authKey) { btnEl.innerText = '需 API Key'; btnEl.disabled = false; return; }
 
             try {
-                // Tavily Search for verification
+                // TFI Search for verification
                 var verifyQ = a.title + ' ' + (a.detail || '').slice(0, 100) + ' 2026';
-                var searchRes = await tavilySearch(verifyQ);
+                var searchRes = await tfiSearch(verifyQ);
                 var searchCtx = '';
                 if (searchRes && searchRes.results && searchRes.results.length > 0) {
                     searchCtx = searchRes.results.slice(0, 5).map(function(r) {
@@ -1086,8 +1096,9 @@
                 }
 
                 var prompt = '你是一个新闻核查员，专门核查地缘政治新闻的真实性和时效性。\n\n' +
-                    '【日期锚定】今天是 2026 年 4 月 29 日。所有事件必须基于当前日期判断时效性。\n\n' +
-                    '请严格核实以下信息：\n标题：' + a.title + '\n内容：' + a.detail + '\n发布日期：' + (a.date || '未知') + '\n\n以下是从DuckDuckGo实时搜索到的相关结果：\n' + (searchCtx || '无搜索结果') + '\n\n' +
+                    getDatePrefix() + '\n\n' +
+                    '请严格核实以下信息：\n标题：' + a.title + '\n内容：' + a.detail + '\n发布日期：' + (a.date || '未知') + '\n\n以下是从权威来源（Reuters、Bloomberg、AP News、IMO、Lloyd\'s List、UN、中国商务部、美国国务院）搜索到的相关结果：\n' + (searchCtx || '无搜索结果') + '\n\n' +
+                    AUTH_REVIEW + '\n\n' +
                     '【自我怀疑机制】如果该消息声称的事件极其反常（如战争爆发、政策剧变），而搜索结果中缺乏多个权威来源证实，请判定为 unverified。\n\n' +
                     '返回纯JSON：{"status":"verified","reason":"简短原因（20字）","source":"来源网址"} 或 {"status":"unverified","reason":"..."} 或 {"status":"zombie","reason":"此新闻是X年前的旧闻被重新传播"}。verified=已核实为最新真实新闻，unverified=无法找到官方来源证实，zombie=过时旧闻被重新翻出。';
                 var result = await Brain.ask(prompt, 0.3);
@@ -1136,7 +1147,9 @@
                 }).join('\n');
 
                 // Step 2: DeepSeek 分析师 — 审查今日新闻，识别地缘/货运风险，评估对起重机出口的影响
-                const geoPrompt = `你是一个地缘政治与货运风险分析师，专门服务起重机出口行业。
+                const geoPrompt = `${AUTH_REVIEW}
+
+你是一个地缘政治与货运风险分析师，专门服务起重机出口行业。
 
 【日期锚定】今天日期是 ${todayCN}。所有信息必须基于此日期判断时效性。
 
@@ -1169,6 +1182,7 @@ ${searchContext || '（暂未搜索到当日新闻）'}
 
 【规则】
 - 如果今日新闻中没有相关事件，alerts 返回空数组，summary 写"今日暂无重大相关事件"。
+- 如果这些网站上没有找到与战争、制裁或贸易禁令相关的信息，请将其标记为【未经证实的传闻】，不要将其作为事实呈现。
 - level 标注：critical = 直接影响航线/关税/制裁，warning = 潜在风险上升，info = 一般性关注。
 - 每条 alert 的 source URL 必须来自上面提供的搜索结果，不要编造。`;
                 const geoResult = await Brain.ask(geoPrompt, 0.3);
@@ -1269,19 +1283,18 @@ ${searchContext || '（暂未搜索到当日新闻）'}
                 </div>`;
 
             try {
-                // Step 1: DuckDuckGo 实时搜索国家风险数据
+                // Step 1: TFI 实时搜索 — 仅从白名单权威来源获取情报
                 const countryQueries = [
                     country + ' crane heavy machinery import tariff 2026',
                     country + ' political risk economic outlook 2026',
                     country + ' port infrastructure logistics risk 2026',
                     country + ' trade sanctions export regulation 2026',
-                    country + ' business culture language communication',
                 ];
+                const searchResults = await Promise.all(countryQueries.map(function(q) {
+                    return tfiSearch(q, { max_results: 5 });
+                }));
                 const allResults = [];
-                for (const q of countryQueries) {
-                    const res = await tavilySearch(q, { max_results: 8 });
-                    if (res && res.results) allResults.push(...res.results);
-                }
+                searchResults.forEach(function(r) { if (r && r.results) allResults.push(...r.results); });
                 const searchContext = allResults.slice(0, 20).map(function(r) {
                     return '- [' + r.title + '](' + r.url + ') ' + (r.content || '').slice(0, 250);
                 }).join('\n');
@@ -1289,9 +1302,11 @@ ${searchContext || '（暂未搜索到当日新闻）'}
                     return '<a href="' + (r.url || '').replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" class="text-[9px] text-cyan-500 hover:text-cyan-300 underline underline-offset-2 truncate block max-w-full">' + (r.title || r.url).slice(0, 60) + '</a>';
                 }).join('');
 
-                const response = await Brain.ask(`你是一个地缘政治与经济风险分析师，专门服务起重机出口行业。
+                const response = await Brain.ask(`${AUTH_REVIEW}
+
+你是一个地缘政治与经济风险分析师，专门服务起重机出口行业。
 ${getDatePrefix()}
-以下是从DuckDuckGo实时搜索到的关于"${country}"的情报摘要，请基于这些真实数据进行分析，不要编造：
+以下是从权威来源（Reuters、Bloomberg、AP News、IMO、Lloyd's List、UN、中国商务部、美国国务院）实时搜索到的关于"${country}"的情报摘要，请基于这些真实数据进行分析，不要编造：
 
 ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识分析并注明数据局限性）'}
 
@@ -1373,7 +1388,8 @@ ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识
                         <div class="shrink-0 pt-4 mt-2 border-t border-slate-700">
                             <p class="text-slate-300 text-[11px] italic">${result.conclusion || ''}</p>
                         </div>
-                        ${countrySourceLinks ? '<div class="shrink-0 pt-3 border-t border-slate-700/50"><p class="text-[9px] text-slate-600 mb-1 tracking-wider">数据源（DuckDuckGo）</p><div class="flex flex-wrap gap-x-3 gap-y-0.5">' + countrySourceLinks + '</div></div>' : ''}
+                        ${countrySourceLinks ? '<div class="shrink-0 pt-3 border-t border-slate-700/50"><p class="text-[9px] text-slate-600 mb-1 tracking-wider">数据源（TFI 权威来源）</p><div class="flex flex-wrap gap-x-3 gap-y-0.5">' + countrySourceLinks + '</div></div>' : ''}
+                        ${WARNING_BANNER}
                     </div>`;
             } catch (error) {
                 console.error(error);
@@ -2580,7 +2596,7 @@ ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识
 
                 const [resSocial, resTrade, resContact] = await Promise.all([
                     tavilySearch(qSocial, { max_results: 10 }),
-                    tavilySearch(qTrade, { max_results: 10 }),
+                    tfiSearch(qTrade, { max_results: 10 }),
                     tavilySearch(qContact, { max_results: 10 })
                 ]);
 
@@ -2882,7 +2898,9 @@ ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识
 
                 reconStatus(30, '正在发送至 DeepSeek 分析引擎...');
 
-                const prompt = `【日期锚定】今天是 ${new Date().toLocaleString('zh-CN', {timeZone:'Asia/Shanghai', year:'numeric', month:'long', day:'numeric'})}
+                const prompt = `${AUTH_REVIEW}
+
+【日期锚定】今天是 ${new Date().toLocaleString('zh-CN', {timeZone:'Asia/Shanghai', year:'numeric', month:'long', day:'numeric'})}
 
 你是一个专业商业情报分析师。基于以下侦察数据生成专项情报报告。
 
@@ -2964,6 +2982,7 @@ ${adjHistory}
                                     ${report.replace(/\*\*(.*?)\*\*/g, '<strong class="text-cyan-400">$1</strong>')}
                                 </div>
                             </div>
+                            ${WARNING_BANNER}
                             <div class="text-[9px] text-slate-600 text-right border-t border-slate-800 pt-2 mt-2">
                                 报告生成: ${new Date().toLocaleString('zh-CN')} · DeepSeek 综合分析
                             </div>
@@ -3195,6 +3214,8 @@ ${adjHistory}
 
             // AI Prompt（含行业校验）
             const promptText = `
+${AUTH_REVIEW}
+
 ${getDatePrefix()}
 你现在是一名高级情报分析师（Senior Intelligence Analyst），专门从事${industry || '起重机/重型机械'}行业的竞争对手分析与客户背景调查。
 
@@ -3344,6 +3365,7 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
                         <div class="shrink-0 pt-4 mt-2 border-t border-slate-700 space-y-2">
                             <p class="text-cyan-400 font-bold text-xs tracking-wide">下一步：${result.next_step || ''}</p>
                             <p class="text-slate-300 text-[11px] italic">${result.conclusion || ''}</p>
+                            ${WARNING_BANNER}
                             <button onclick="reRunReconIndustrial()" class="w-full bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-500/30 py-2 rounded text-[10px] tracking-wider transition mt-2">
                                 [!] 不是此人 — 切换到工业领域搜索
                             </button>
@@ -3560,7 +3582,7 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
             dom.chatMsgs.scrollTop = dom.chatMsgs.scrollHeight;
         }
 
-        function callChatAPI(userText) {
+        async function callChatAPI(userText) {
             var apiKey = getApiKey();
             if (!apiKey) {
                 addMessage('assistant', '请先在右上角填写 API Key，我才能回答问题。');
@@ -3573,85 +3595,55 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
             var timeStr = dateStr + ' ' +
                 ('0' + beijing.getHours()).slice(-2) + ':' + ('0' + beijing.getMinutes()).slice(-2) + ':' + ('0' + beijing.getSeconds()).slice(-2);
 
-            // Step 1: 快速搜索 — 优先 Tavily（快、有日期过滤），否则 DDG
-            // 给搜索 query 追加当天日期，确保拿到最新信息
+            // Step 1: TFI 搜索 — 仅从白名单权威来源获取信息
             var searchQuery = userText + ' ' + dateISO;
-            var searchOpts = { max_results: 5, skip_domain_filter: true };
-            // 优先 Tavily（有密钥时），失败则后备 DDG
-            var searchPromise;
-            if (getTavilyKey()) {
-                searchPromise = _tavilyApi(searchQuery, searchOpts).then(function(r) {
-                    return r || duckDuckGoSearch(searchQuery, { max_results: 5 });
+            var searchResult = await tfiSearch(searchQuery, { max_results: 4 });
+            var searchContext = '';
+            var searchSources = [];
+            if (searchResult && searchResult.results && searchResult.results.length > 0) {
+                searchResult.results.slice(0, 4).forEach(function(r) {
+                    if (r.url) searchSources.push({ title: r.title || '', url: r.url });
                 });
-            } else {
-                searchPromise = duckDuckGoSearch(searchQuery, { max_results: 5 });
+                searchContext = searchResult.results.slice(0, 4).map(function(r) {
+                    return '- [' + (r.title || '') + '](' + (r.url || '') + ') ' + ((r.content || '').slice(0, 200));
+                }).join('\n');
             }
 
-            return searchPromise.then(function(searchResult) {
-                var searchContext = '';
-                var searchSources = [];
-                if (searchResult && searchResult.results && searchResult.results.length > 0) {
-                    // 按发布时间排序（最新的在前），只保留 4 条最相关的
-                    var sorted = searchResult.results.slice().sort(function(a, b) {
-                        var da = a.published_date ? new Date(a.published_date).getTime() : 0;
-                        var db = b.published_date ? new Date(b.published_date).getTime() : 0;
-                        return db - da;
-                    });
-                    sorted.slice(0, 4).forEach(function(r) {
-                        if (r.url) searchSources.push({ title: r.title || '', url: r.url });
-                    });
-                    searchContext = sorted.slice(0, 4).map(function(r) {
-                        return '- [' + (r.title || '') + '](' + (r.url || '') + ') [发布:' + (r.published_date || '未知') + '] ' + ((r.content || '').slice(0, 200));
-                    }).join('\n');
-                }
+            var systemPrompt = '【日期锚定】今天北京时间是 ' + timeStr + '（UTC+8）。所有时效性信息必须基于此日期判断。\n\n' +
+                AUTH_REVIEW + '\n\n' +
+                '你是德德，一台专注于起重机海外贸易的AI助手。你服务于一家中国起重机出口公司。\n\n' +
+                (searchContext
+                    ? '以下是从权威来源（Reuters、Bloomberg、AP News、IMO、Lloyd\'s List、UN、中国商务部、美国国务院）搜索到的相关信息，请**严格基于这些数据**回答，不要编造：\n\n' + searchContext + '\n\n'
+                    : '（权威来源搜索未返回结果。如果用户询问的是实时信息，请如实告知"目前权威来源中未找到相关信息"。）\n\n') +
+                '【时效性规则】\n' +
+                '1. 如果搜索结果中缺乏当天或最新的信息，回复开头明确说明"权威来源中暂无今日最新数据"。\n' +
+                '2. 【未经证实的传闻规则】如果搜索来源中未找到与用户询问相关的信息，请不要根据训练数据编造，直接告知未找到权威来源信息。\n' +
+                '3. 不要使用搜索结果中没有的信息来假装知道最新情况。\n\n' +
+                '【来源质量标准】只使用权威来源（imo.org, lloydslist.com, reuters.com, apnews.com, bloomberg.com, un.org, mofcom.gov.cn, state.gov）的数据。如果缺乏权威来源，请如实说明。\n\n' +
+                '你的风格：专业、冷静、直接，用简洁的中文回答，每次回答控制在100字以内，保持干练。在回答末尾附上权威来源链接供点击验证。';
 
-                var freshestDate = '';
-                if (searchSources.length > 0) {
-                    var dates = [];
-                    if (searchResult && searchResult.results) {
-                        searchResult.results.forEach(function(r) {
-                            if (r.published_date) dates.push(r.published_date);
-                        });
-                    }
-                    dates.sort();
-                    if (dates.length > 0) freshestDate = dates[dates.length - 1];
-                }
+            var apiMessages = [{ role: 'system', content: systemPrompt }];
+            for (var i = 0; i < chatState.messages.length; i++) {
+                var m = chatState.messages[i];
+                apiMessages.push({ role: m.role, content: m.text });
+            }
+            apiMessages.push({ role: 'user', content: userText });
 
-                var systemPrompt = '【日期锚定】今天北京时间是 ' + timeStr + '（UTC+8）。所有时效性信息必须基于此日期判断。\n\n' +
-                    '你是德德，一台专注于起重机海外贸易的AI助手。你服务于一家中国起重机出口公司。\n\n' +
-                    (searchContext
-                        ? '以下是联网实时搜索到的与用户问题相关的最新信息（按发布时间排列，最新的在前），请**严格基于这些数据**回答，不要编造：\n\n' + searchContext + '\n\n'
-                        : '（联网搜索未返回结果，请基于你的训练知识回答，并注明数据可能存在滞后。）\n\n') +
-                    '【时效性规则】\n' +
-                    '1. 如果搜索结果中最新的发布日期是 ' + (freshestDate || '未知') + '，回答时必须明确告知用户这个日期。\n' +
-                    '2. 如果搜索结果中没有找到当天或昨天的信息，回复开头就说明"搜索结果中暂无今日最新数据，以下是截至' + (freshestDate || '近期') + '的信息".\n' +
-                    '3. 不要使用搜索结果中没有的信息来假装知道最新情况。\n\n' +
-                    '【来源质量标准】只使用权威来源（新闻机构、政府网站、官方气象局）的数据。忽略个人博客、SEO聚合站、论坛的内容。如果搜索结果中缺乏权威来源，请说明"暂未找到权威来源"而非编造。\n\n' +
-                    '你的风格：专业、冷静、直接，用简洁的中文回答，每次回答控制在100字以内，保持干练。可以带一点冷幽默，但整体保持专业。';
+            var body = { model: AI_MODEL, messages: apiMessages, temperature: 0.7, max_tokens: 500 };
 
-                var apiMessages = [{ role: 'system', content: systemPrompt }];
-                for (var i = 0; i < chatState.messages.length; i++) {
-                    var m = chatState.messages[i];
-                    apiMessages.push({ role: m.role, content: m.text });
-                }
-                apiMessages.push({ role: 'user', content: userText });
-
-                var body = { model: AI_MODEL, messages: apiMessages, temperature: 0.7, max_tokens: 500 };
-
-                return fetch(AI_API_URL, {
+            try {
+                var resp = await fetch(AI_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
                     body: JSON.stringify(body)
-                }).then(function(r) {
-                    if (!r.ok) throw new Error('API 请求失败');
-                    return r.json();
-                }).then(function(data) {
-                    var reply = data.choices[0].message.content.trim();
-                    addMessage('assistant', reply, searchSources);
                 });
-            }).catch(function(err) {
+                if (!resp.ok) throw new Error('API 请求失败');
+                var data = await resp.json();
+                var reply = data.choices[0].message.content.trim();
+                addMessage('assistant', reply, searchSources);
+            } catch (err) {
                 addMessage('assistant', '[系统错误] ' + err.message);
-            });
+            }
         }
 
         function sendChat() {
