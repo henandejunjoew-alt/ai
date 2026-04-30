@@ -414,7 +414,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-30 10:47:03" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-30 10:58:06" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -483,22 +483,14 @@
         const AI_MODEL = "deepseek-chat";
         // Tavily source whitelist: only official news and maritime/trade specialist sites
         const TAVILY_WHITELIST = [
-            'reuters.com', 'bloomberg.com', 'lloydslist.com', 'marinetraffic.com',
-            'tradewindsnews.com', 'wsj.com', 'ft.com', 'ec.europa.eu',
-            'worldbank.org', 'imf.org', 'imo.org', 'splashed.com',
-            'hellenicshippingnews.com', 'porttechnology.org', 'container-news.com',
-            'supplychaindive.com', 'freightwaves.com', 'trade.gov',
-            'mofcom.gov.cn', 'gov.cn', 'bbc.com', 'bbc.co.uk',
-            'apnews.com', 'cnbc.com', 'economist.com', 'scmp.com',
-            'nih.gov', 'who.int', 'reutersagency.com', 'maritime-executive.com',
-            'weather.gov', 'weather.com', 'accuweather.com', 'nmc.cn', 'cma.gov.cn',
-            'aljazeera.com', 'theguardian.com', 'nytimes.com', 'washingtonpost.com',
-            'dw.com', 'france24.com', 'channelnewsasia.com', 'nhk.or.jp',
-            'reutersagency.com', 'maritime-executive.com', 'worldweatheronline.com',
-            'timeanddate.com', 'gmtu.org', 'craneexport.com', 'khl.com',
-            'cranemarket.com', 'hoerbiger.com', 'transportgeography.org'
+            'reuters.com', 'apnews.com', 'bloomberg.com',
+            'imo.org', 'lloydslist.com', 'marinetraffic.com', 'bimco.org',
+            'crisisgroup.org', 'cfr.org', 'chathamhouse.org',
+            'un.org', 'wto.org', 'europa.eu',
+            'mofcom.gov.cn', 'state.gov'
         ];
-        // Domains to always exclude (social media, blogs, low-quality aggregators)
+        // 地缘冲突专用 DDG site 过滤 — 只从这些域名搜索
+        const GEO_SITE_FILTER = '(site:imo.org OR site:lloydslist.com OR site:marinetraffic.com OR site:bimco.org OR site:crisisgroup.org OR site:cfr.org OR site:chathamhouse.org OR site:reuters.com OR site:apnews.com OR site:bloomberg.com OR site:un.org OR site:wto.org OR site:europa.eu OR site:mofcom.gov.cn OR site:state.gov)';
         const TAVILY_BLACKLIST = [
             'facebook.com', 'twitter.com', 'x.com', 'instagram.com', 'linkedin.com',
             'tiktok.com', 'reddit.com', 'youtube.com', 'pinterest.com',
@@ -1117,15 +1109,15 @@
             container.innerHTML = '<div class="text-xs text-slate-500 animate-pulse py-6 text-center">正在搜索最新地缘情报...</div>';
 
             try {
-                // Step 1: 并行 Tavily 搜索地缘政治事件（3 路并行，跳过慢速 DDG）
+                // Step 1: DuckDuckGo 搜索 + site: 过滤，只从权威域名取结果
                 const geoQueries = [
-                    'crane export shipping disruption 2026 port',
-                    'geopolitical risk tariff heavy machinery 2026',
-                    'port congestion Red Sea crane delay 2026'
+                    'crane export shipping disruption port congestion 2026',
+                    'geopolitical risk trade war heavy machinery tariff 2026',
+                    'maritime security Red Sea supply chain delay 2026'
                 ];
                 const allResults = [];
                 const geoSearchResults = await Promise.all(geoQueries.map(function(q) {
-                    return _tavilyApi(q, { max_results: 8 });
+                    return duckDuckGoSearch(q + ' ' + GEO_SITE_FILTER, { max_results: 10 });
                 }));
                 geoSearchResults.forEach(function(res) {
                     if (res && res.results) allResults.push(...res.results);
@@ -1134,19 +1126,18 @@
                     return '- [' + r.title + '](' + r.url + ') ' + (r.content || '').slice(0, 200);
                 }).join('\n');
 
-                // Step 2: DeepSeek analysis with real search data
+                // Step 2: DeepSeek analysis with search data
                 const geoPrompt = `你是一个地缘政治与物流风险分析师，专门服务起重机出口行业。
 
 【日期锚定】今天是 2026 年 4 月 29 日。所有事件必须基于当前日期判断时效性。
 
-以下是从Tavily搜索引擎抓取到的近期新闻摘要（仅限权威新闻源和海运专业网站），请基于这些真实数据进行分析：
+以下结果仅来自以下权威来源：IMO、Lloyd's List、MarineTraffic、BIMCO、Crisis Group、CFR、Chatham House、Reuters、AP News、Bloomberg、UN、WTO、EU、中国商务部、美国国务院。请据此分析：
 
 ${searchContext || '（暂未搜索到相关新闻）'}
 
-【重要：来源质量规则】
-1. 从以下搜索结果中提取的事件，其来源URL的域名必须在权威新闻机构或官方机构列表中（reuters.com, bloomberg.com, apnews.com, bbc.com, ft.com, wsj.com, cnbc.com, gov.cn, ec.europa.eu 等）。如果来源域名是个人博客、SEO垃圾站、聚合器，则丢弃该条目。
-2. 每条事件必须包含一个指向权威来源的真实可访问URL。如果搜索结果中没有可用的权威来源，请不要编造来源。
-3. 不要从搜索结果中提取来源不可靠的事件。
+【提取规则】
+1. 只从上述权威来源中提取事件。每条事件必须包含一条真实可访问的 source URL。
+2. 如果搜索结果中没有可用事件，直接返回空数组，不要编造。
 
 【自我怀疑机制】如果你抓到的消息逻辑极其反常（如全球性战争、完全颠覆性的政策突变），请在回答前进行自我怀疑，并在该条目的 detail 末尾标注 [待核实]。
 
@@ -1168,35 +1159,6 @@ ${searchContext || '（暂未搜索到相关新闻）'}
 注意：level 为 "critical"（严重）或 "warning"（警告）或 "info"（一般）。`;
                 const geoResult = await Brain.ask(geoPrompt, 0.3);
                 const alerts = (geoResult && geoResult.alerts) || [];
-
-                // Step 3: Cross-verification — for critical alerts, do a second Tavily search
-                for (var vi = 0; vi < alerts.length; vi++) {
-                    if (alerts[vi].level === 'critical' && alerts[vi].title) {
-                        try {
-                            var verifyQ = alerts[vi].title + ' 2026 authoritative source';
-                            var verifyRes = await tavilySearch(verifyQ, { max_results: 5 });
-                            var confirmed = false;
-                            if (verifyRes && verifyRes.results) {
-                                for (var vj = 0; vj < verifyRes.results.length; vj++) {
-                                    var vu = verifyRes.results[vj].url || '';
-                                    for (var vk = 0; vk < TAVILY_WHITELIST.length; vk++) {
-                                        if (vu.indexOf(TAVILY_WHITELIST[vk]) >= 0) {
-                                            confirmed = true;
-                                            break;
-                                        }
-                                    }
-                                    if (confirmed) break;
-                                }
-                            }
-                            if (!confirmed) {
-                                alerts[vi].detail += ' [待核实：单一信源，缺乏权威交叉验证]';
-                                alerts[vi].unverified = true;
-                            }
-                        } catch(e) {
-                            console.warn('[交叉验证] 验证异常:', e.message);
-                        }
-                    }
-                }
 
                 // 持久化到 localStorage
                 localStorage.setItem('geo_alerts_cache', JSON.stringify({
