@@ -1,0 +1,163 @@
+{
+  "description": "权威信息来源库 — TFI 协议参考。当前 whitelist 用于代码中的 TAVILY_WHITELIST 和 TFI_SITE_FILTER。extended 列表供后续扩展，德德（Dede）可根据查询类型选用。",
+  "updated": "2026-04-30",
+  "note": "将 extended 中的域名加入 whitelist 后，需同步更新 index.html 中的 TAVILY_WHITELIST 和 TFI_SITE_FILTER 常量。",
+
+  "whitelist": [
+    { "domain": "reuters.com", "name": "Reuters", "category": "news", "lang": "en", "description": "路透社 — 全球新闻、财经、地缘政治" },
+    { "domain": "apnews.com", "name": "Associated Press", "category": "news", "lang": "en", "description": "美联社 — 国际新闻、时事" },
+    { "domain": "bloomberg.com", "name": "Bloomberg", "category": "finance", "lang": "en", "description": "彭博社 — 财经新闻、金融市场、经济数据" },
+    { "domain": "imo.org", "name": "International Maritime Organization", "category": "maritime", "lang": "en", "description": "国际海事组织 — 航运法规、海事安全、环保" },
+    { "domain": "lloydslist.com", "name": "Lloyd's List", "category": "maritime", "lang": "en", "description": "劳氏日报 — 航运业新闻、港口动态、货运" },
+    { "domain": "un.org", "name": "United Nations", "category": "gov", "lang": "en", "description": "联合国 — 国际制裁、决议、人道事务" },
+    { "domain": "mofcom.gov.cn", "name": "中国商务部", "category": "gov", "lang": "zh", "description": "商务部 — 外贸政策、关税、进出口法规" },
+    { "domain": "state.gov", "name": "U.S. Department of State", "category": "gov", "lang": "en", "description": "美国国务院 — 制裁名单、出口管制、外交政策" }
+  ],
+
+  "extended": {
+    "weather": {
+      "label": "天气气象",
+      "description": "天气预报、气候数据、极端天气预警",
+      "sources": [
+        { "domain": "weather.com", "name": "The Weather Channel", "lang": "en", "description": "全球天气预报、雷达图、极端天气预警" },
+        { "domain": "accuweather.com", "name": "AccuWeather", "lang": "en", "description": "分钟级降水预报、空气质量指数" },
+        { "domain": "weather.gov", "name": "NOAA National Weather Service", "lang": "en", "description": "美国国家气象局 — 官方气象预警、海洋天气预报" },
+        { "domain": "wmo.int", "name": "World Meteorological Organization", "lang": "en", "description": "世界气象组织 — 全球气候监测、极端天气" },
+        { "domain": "cma.gov.cn", "name": "中国气象局", "lang": "zh", "description": "中国气象局 — 国内天气预警、台风路径" },
+        { "domain": "windy.com", "name": "Windy", "lang": "en", "description": "可视化风力海浪图、全球气象模型" }
+      ]
+    },
+    "time": {
+      "label": "时间时区",
+      "description": "当前时间、时区转换、夏令时",
+      "sources": [
+        { "domain": "timeanddate.com", "name": "timeanddate.com", "lang": "en", "description": "全球时区查询、时间换算、日出日落" },
+        { "domain": "time.is", "name": "Time.is", "lang": "en", "description": "精确到秒的当前时间、时区信息" },
+        { "domain": "24timezones.com", "name": "24TimeZones", "lang": "en", "description": "时区转换器、世界时钟" }
+      ]
+    },
+    "currency": {
+      "label": "汇率财经",
+      "description": "实时汇率、外汇市场、经济指标",
+      "sources": [
+        { "domain": "xe.com", "name": "XE", "lang": "en", "description": "实时汇率换算、货币图表" },
+        { "domain": "oanda.com", "name": "OANDA", "lang": "en", "description": "外汇汇率、货币转换器、历史数据" },
+        { "domain": "imf.org", "name": "International Monetary Fund", "lang": "en", "description": "国际货币基金组织 — 汇率、外汇储备、经济展望" },
+        { "domain": "worldbank.org", "name": "World Bank", "lang": "en", "description": "世界银行 — 国家经济数据、营商环境评级" },
+        { "domain": "investing.com", "name": "Investing.com", "lang": "en", "description": "金融市场数据、外汇、商品期货" }
+      ]
+    },
+    "trade": {
+      "label": "贸易关税",
+      "description": "国际贸易数据、HS编码、关税政策",
+      "sources": [
+        { "domain": "wto.org", "name": "World Trade Organization", "lang": "en", "description": "世贸组织 — 贸易争端、关税壁垒、多边协议" },
+        { "domain": "trademap.org", "name": "ITC Trade Map", "lang": "en", "description": "国际贸易统计、出口市场分析、HS编码查询" },
+        { "domain": "comtrade.un.org", "name": "UN Comtrade", "lang": "en", "description": "联合国商品贸易统计数据库" },
+        { "domain": "customs.gov.cn", "name": "中国海关总署", "lang": "zh", "description": "HS编码查询、进出口统计、税率" },
+        { "domain": "tradefinanceglobal.com", "name": "Trade Finance Global", "lang": "en", "description": "贸易金融 — 信用证、跨境支付、贸易融资" },
+        { "domain": "euromoney.com", "name": "Euromoney", "lang": "en", "description": "欧洲货币 — 贸易融资、国家风险评级" }
+      ]
+    },
+    "maritime": {
+      "label": "航运海事",
+      "description": "船舶追踪、港口动态、航运市场",
+      "sources": [
+        { "domain": "marinetraffic.com", "name": "MarineTraffic", "lang": "en", "description": "船舶实时AIS追踪、港口船舶动态" },
+        { "domain": "vesselfinder.com", "name": "VesselFinder", "lang": "en", "description": "船舶实时位置、航线查询" },
+        { "domain": "worldportsource.com", "name": "World Port Source", "lang": "en", "description": "全球港口信息、设施、联系方式" },
+        { "domain": "maritime-executive.com", "name": "The Maritime Executive", "lang": "en", "description": "海事新闻 — 航运市场、港口运营" },
+        { "domain": "porttechnology.org", "name": "Port Technology", "lang": "en", "description": "港口技术、自动化、基础设施" },
+        { "domain": "freightos.com", "name": "Freightos", "lang": "en", "description": "国际运费查询、货运比价、供应链数据" }
+      ]
+    },
+    "logistics": {
+      "label": "物流快递",
+      "description": "货物追踪、快递查询、物流服务商",
+      "sources": [
+        { "domain": "track-trace.com", "name": "Track-Trace", "lang": "en", "description": "集装箱追踪、货物定位、多承运商查询" },
+        { "domain": "maersk.com", "name": "Maersk", "lang": "en", "description": "马士基航运 — 船期查询、集装箱追踪" },
+        { "domain": "coscoshipping.com", "name": "COSCO Shipping", "lang": "en", "description": "中远海运 — 船期、集装箱追踪、航线" },
+        { "domain": "hmm21.com", "name": "HMM", "lang": "en", "description": "HMM（原现代商船）— 船期、货物追踪" },
+        { "domain": "seabay.com", "name": "SeaBay", "lang": "en", "description": "国际货运比价、海运散货拼箱" }
+      ]
+    },
+    "company": {
+      "label": "企业信息",
+      "description": "工商注册、企业信用、商业数据库",
+      "sources": [
+        { "domain": "opencorporates.com", "name": "OpenCorporates", "lang": "en", "description": "全球公司注册信息、企业结构查询" },
+        { "domain": "crunchbase.com", "name": "Crunchbase", "lang": "en", "description": "全球公司数据、融资信息、行业分类" },
+        { "domain": "bloomberg.com", "name": "Bloomberg", "lang": "en", "description": "彭博 — 公司财务数据、行业分析（已在whitelist）" },
+        { "domain": "gsxt.gov.cn", "name": "国家企业信用信息公示系统", "lang": "zh", "description": "中国企业信用信息查询" },
+        { "domain": "gs1.org", "name": "GS1", "lang": "en", "description": "全球条形码标准、企业标识、产品编码" }
+      ]
+    },
+    "standards": {
+      "label": "标准认证",
+      "description": "国际标准、产品认证、行业规范",
+      "sources": [
+        { "domain": "iso.org", "name": "International Organization for Standardization", "lang": "en", "description": "ISO国际标准 — 质量、安全、管理体系" },
+        { "domain": "tuv.com", "name": "TÜV Rheinland", "lang": "en", "description": "德国莱茵 — 产品安全认证、CE认证" },
+        { "domain": "iec.ch", "name": "International Electrotechnical Commission", "lang": "en", "description": "国际电工委员会 — 电气标准、安全规范" },
+        { "domain": "safety.gov", "name": "U.S. Safety", "lang": "en", "description": "美国职业安全与健康管理局（OSHA）" }
+      ]
+    },
+    "demographics": {
+      "label": "人口地理",
+      "description": "人口统计、地理信息、营商环境",
+      "sources": [
+        { "domain": "cia.gov", "name": "CIA World Factbook", "lang": "en", "description": "世界各国概况 — 人口、经济、政府、地理" },
+        { "domain": "worldometers.info", "name": "Worldometer", "lang": "en", "description": "实时人口统计、各国数据" },
+        { "domain": "doingbusiness.org", "name": "Doing Business", "lang": "en", "description": "世界银行 — 各国营商环境排名（已归档数据）" }
+      ]
+    },
+    "news_cn": {
+      "label": "中文新闻",
+      "description": "中国官方新闻媒体",
+      "sources": [
+        { "domain": "xinhuanet.com", "name": "新华社", "lang": "zh", "description": "新华网 — 中国官方新闻、外交动态、经贸" },
+        { "domain": "chinadaily.com.cn", "name": "China Daily", "lang": "en", "description": "中国日报 — 英文中国新闻、商务资讯" },
+        { "domain": "cctv.com", "name": "央视网", "lang": "zh", "description": "中央电视台 — 新闻联播、专题报道" },
+        { "domain": "people.com.cn", "name": "人民网", "lang": "zh", "description": "人民日报 — 官方政策解读、评论" }
+      ]
+    }
+  },
+
+  "categories": [
+    { "id": "news", "label": "新闻通讯社", "description": "国际权威新闻机构，用于地缘政治、时事追踪" },
+    { "id": "weather", "label": "天气气象", "description": "天气预报、气候数据、极端天气预警" },
+    { "id": "time", "label": "时间时区", "description": "当前时间、时区转换、夏令时" },
+    { "id": "finance", "label": "财经汇率", "description": "金融市场、汇率、经济数据、企业信用" },
+    { "id": "trade", "label": "贸易关税", "description": "进出口政策、HS编码、贸易壁垒" },
+    { "id": "maritime", "label": "航运海事", "description": "船舶追踪、港口、航运、海事法规" },
+    { "id": "logistics", "label": "物流快递", "description": "货物追踪、船期、承运商" },
+    { "id": "company", "label": "企业信息", "description": "工商注册、企业信用、商业数据库" },
+    { "id": "standards", "label": "标准认证", "description": "国际标准、产品认证、行业规范" },
+    { "id": "demographics", "label": "人口地理", "description": "人口统计、地理信息、营商环境" },
+    { "id": "gov", "label": "政府机构", "description": "制裁、出口管制、外交、海关" }
+  ],
+
+  "query_routing": {
+    "description": "德德（Dede）可根据用户问题类型，选择对应的权威来源进行搜索",
+    "rules": [
+      { "query_type": "天气/气候/温度", "category": "weather", "sites": "weather.com, accuweather.com, weather.gov, cma.gov.cn" },
+      { "query_type": "时间/时差/当前时间", "category": "time", "sites": "timeanddate.com, time.is" },
+      { "query_type": "汇率/外汇/货币", "category": "currency", "sites": "xe.com, oanda.com, bloomberg.com, investing.com" },
+      { "query_type": "新闻/时事/地缘政治", "category": "news", "sites": "reuters.com, apnews.com, bloomberg.com, xinhuanet.com" },
+      { "query_type": "航运/港口/船舶", "category": "maritime", "sites": "lloydslist.com, marinetraffic.com, imo.org, vesselfinder.com" },
+      { "query_type": "物流/追踪/集装箱", "category": "logistics", "sites": "track-trace.com, maersk.com, coscoshipping.com" },
+      { "query_type": "贸易/关税/HS编码", "category": "trade", "sites": "trademap.org, wto.org, customs.gov.cn, mofcom.gov.cn" },
+      { "query_type": "公司/企业/背景调查", "category": "company", "sites": "opencorporates.com, crunchbase.com, bloomberg.com" },
+      { "query_type": "标准/认证/ISO", "category": "standards", "sites": "iso.org, tuv.com, iec.ch" },
+      { "query_type": "制裁/出口管制/外交", "category": "gov", "sites": "state.gov, un.org, mofcom.gov.cn" }
+    ]
+  },
+
+  "search_operators": {
+    "ddg_site_filter": "(site:imo.org OR site:lloydslist.com OR site:reuters.com OR site:apnews.com OR site:bloomberg.com OR site:un.org OR site:mofcom.gov.cn OR site:state.gov)",
+    "tavily_whitelist": "TAVILY_WHITELIST 常量中的域名列表",
+    "usage": "DDG 优先使用 site: 操作符精确限定域名；Tavily 后备使用 include_domains 参数",
+    "extended_usage": "在 DDG site: 过滤或 Tavily include_domains 中加入对应分类的域名，即可扩展搜索范围到该领域"
+  }
+}
