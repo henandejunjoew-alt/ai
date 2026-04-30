@@ -414,7 +414,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-30 10:28:08" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-30 10:40:13" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -1060,10 +1060,8 @@
                         ${a.date ? '<span class="text-[9px] text-slate-500 whitespace-nowrap ml-2 flex-shrink-0">' + a.date + '</span>' : ''}
                     </div>
                     <p class="text-slate-400 text-[10px] leading-relaxed">${a.detail}</p>
-                    <div class="flex items-center gap-2 mt-2">
-                        ${sourceUrl ? '<a href="' + sourceUrl.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" class="text-[9px] text-cyan-500 hover:text-cyan-300 underline underline-offset-2 decoration-cyan-500/30">来源</a>' : ''}
-                        <button onclick="verifyGeoAlert(${idx}, this)" class="text-[9px] border border-slate-600/50 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/30 px-2 py-0.5 rounded transition">核实</button>
-                        <span class="verify-result text-[9px]"></span>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        ${sourceUrl ? '<a href="' + sourceUrl.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:text-cyan-300 bg-cyan-900/20 border border-cyan-500/30 px-2.5 py-1 rounded transition">\u{1F517} ' + (function(){ try{var u=new URL(sourceUrl);return u.hostname.replace('www.','').slice(0,25);}catch(e){return sourceUrl.slice(0,25);} })() + '</a>' : ''}
                     </div>
                 </div>`;
             }).join('');
@@ -3640,7 +3638,6 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
                     '1. 如果搜索结果中最新的发布日期是 ' + (freshestDate || '未知') + '，回答时必须明确告知用户这个日期。\n' +
                     '2. 如果搜索结果中没有找到当天或昨天的信息，回复开头就说明"搜索结果中暂无今日最新数据，以下是截至' + (freshestDate || '近期') + '的信息".\n' +
                     '3. 不要使用搜索结果中没有的信息来假装知道最新情况。\n\n' +
-                    '**在回答末尾附上信息来源链接。** 格式：来源：[标题](URL)\n\n' +
                     '你的风格：专业、冷静、直接，用简洁的中文回答，每次回答控制在100字以内，保持干练。可以带一点冷幽默，但整体保持专业。';
 
                 var apiMessages = [{ role: 'system', content: systemPrompt }];
