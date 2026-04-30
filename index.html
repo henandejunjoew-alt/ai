@@ -414,7 +414,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-30 11:32:13" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-30 11:35:42" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -1131,7 +1131,7 @@
                 ];
                 const allResults = [];
                 const geoSearchResults = await Promise.all(geoQueries.map(function(q) {
-                    return duckDuckGoSearch(q + ' ' + GEO_SITE_FILTER, { max_results: 10, date_range: 'd' });
+                    return tfiSearch(q, { max_results: 10, date_range: 'd' });
                 }));
                 geoSearchResults.forEach(function(res) {
                     if (res && res.results) allResults.push(...res.results);
