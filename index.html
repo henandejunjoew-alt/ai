@@ -414,7 +414,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-30 12:07:36" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-30 12:12:20" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -505,6 +505,20 @@
             'blogspot.com', 'wordpress.com', 'medium.com', 'substack.com',
             'tumblr.com', 'weibo.com', 'quora.com', 'wikipedia.org'
         ];
+        // 德德专用域名列表：覆盖天气、时间、汇率、新闻等日常查询领域
+        const DEDE_DOMAINS = [
+            'weather.com', 'accuweather.com', 'weather.gov', 'wmo.int', 'cma.gov.cn', 'windy.com',
+            'timeanddate.com', 'time.is', '24timezones.com',
+            'xe.com', 'oanda.com', 'investing.com', 'bloomberg.com',
+            'reuters.com', 'apnews.com', 'xinhuanet.com', 'chinadaily.com.cn',
+            'un.org', 'state.gov', 'mofcom.gov.cn', 'customs.gov.cn',
+            'imo.org', 'lloydslist.com', 'marinetraffic.com',
+            'wto.org', 'worldbank.org', 'imf.org',
+            'iso.org', 'tuv.com',
+            'opencorporates.com', 'crunchbase.com'
+        ];
+        // 德德 DDG site: 过滤器（从 DEDE_DOMAINS 生成）
+        const DEDE_SITE_FILTER = '(site:' + DEDE_DOMAINS.join(' OR site:') + ')';
         function getApiKey() { const el = document.getElementById('api-key-input'); return el ? el.value.trim() : ''; }
         function getTavilyKey() { const el = document.getElementById('tavily-key-input'); return el ? el.value.trim() : ''; }
         function isDsKeyMissing() { var k = getApiKey(); return !k; }
@@ -3612,9 +3626,19 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
             var timeStr = dateStr + ' ' +
                 ('0' + beijing.getHours()).slice(-2) + ':' + ('0' + beijing.getMinutes()).slice(-2) + ':' + ('0' + beijing.getSeconds()).slice(-2);
 
-            // Step 1: 通用网页搜索（不限域名，覆盖天气、汇率、时事等）
+            // Step 1: 多域搜索（Tavily 限定 DEDE_DOMAINS → DDG site: 过滤后备）
             var searchQuery = userText + ' ' + dateISO;
-            var searchResult = await webSearch(searchQuery, { skip_domain_filter: true, max_results: 4 });
+            var searchResult = await tfiSearch(searchQuery, { max_results: 4 });
+            // 如果 TFI 白名单新闻站没结果，尝试德德实用域名（天气/汇率等）
+            if (!searchResult || !searchResult.results || searchResult.results.length === 0) {
+                var tvKey = getTavilyKey();
+                if (tvKey) {
+                    searchResult = await _tavilyApi(searchQuery, { include_domains: DEDE_DOMAINS, max_results: 4 });
+                }
+                if (!searchResult || !searchResult.results || searchResult.results.length === 0) {
+                    searchResult = await duckDuckGoSearch(searchQuery + ' ' + DEDE_SITE_FILTER, { max_results: 4, date_range: 'd' });
+                }
+            }
             var searchContext = '';
             var searchSources = [];
             if (searchResult && searchResult.results && searchResult.results.length > 0) {
