@@ -414,7 +414,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-30 11:41:32" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-30 12:07:36" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -3612,9 +3612,9 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
             var timeStr = dateStr + ' ' +
                 ('0' + beijing.getHours()).slice(-2) + ':' + ('0' + beijing.getMinutes()).slice(-2) + ':' + ('0' + beijing.getSeconds()).slice(-2);
 
-            // Step 1: TFI 搜索 — 仅从白名单权威来源获取信息
+            // Step 1: 通用网页搜索（不限域名，覆盖天气、汇率、时事等）
             var searchQuery = userText + ' ' + dateISO;
-            var searchResult = await tfiSearch(searchQuery, { max_results: 4 });
+            var searchResult = await webSearch(searchQuery, { skip_domain_filter: true, max_results: 4 });
             var searchContext = '';
             var searchSources = [];
             if (searchResult && searchResult.results && searchResult.results.length > 0) {
@@ -3630,14 +3630,14 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
                 AUTH_REVIEW + '\n\n' +
                 '你是德德，一台专注于起重机海外贸易的AI助手。你服务于一家中国起重机出口公司。\n\n' +
                 (searchContext
-                    ? '以下是从权威来源（Reuters、Bloomberg、AP News、IMO、Lloyd\'s List、UN、中国商务部、美国国务院）搜索到的相关信息，请**严格基于这些数据**回答，不要编造：\n\n' + searchContext + '\n\n'
-                    : '（权威来源搜索未返回结果。如果用户询问的是实时信息，请如实告知"目前权威来源中未找到相关信息"。）\n\n') +
+                    ? '以下是从互联网实时搜索到的相关信息，请**严格基于这些数据**回答，不要编造：\n\n' + searchContext + '\n\n'
+                    : '（实时搜索未返回结果。如果用户询问的是实时信息，请如实告知"当前搜索未找到相关信息"。）\n\n') +
                 '【时效性规则】\n' +
-                '1. 如果搜索结果中缺乏当天或最新的信息，回复开头明确说明"权威来源中暂无今日最新数据"。\n' +
-                '2. 【未经证实的传闻规则】如果搜索来源中未找到与用户询问相关的信息，请不要根据训练数据编造，直接告知未找到权威来源信息。\n' +
+                '1. 如果搜索结果中缺乏当天或最新的信息，回复开头明确说明"暂无今日最新数据"。\n' +
+                '2. 【未经证实的传闻规则】如果搜索来源中未找到与用户询问相关的信息，请不要根据训练数据编造，直接告知未找到相关信息。\n' +
                 '3. 不要使用搜索结果中没有的信息来假装知道最新情况。\n\n' +
-                '【来源质量标准】只使用权威来源（imo.org, lloydslist.com, reuters.com, apnews.com, bloomberg.com, un.org, mofcom.gov.cn, state.gov）的数据。如果缺乏权威来源，请如实说明。\n\n' +
-                '你的风格：专业、冷静、直接，用简洁的中文回答，每次回答控制在100字以内，保持干练。在回答末尾附上权威来源链接供点击验证。';
+                '【来源质量标准】优先使用权威来源（如气象局官网、政府网站、Reuters、Bloomberg等）的数据。如果缺乏权威来源，请如实说明。\n\n' +
+                '你的风格：专业、冷静、直接，用简洁的中文回答，每次回答控制在100字以内，保持干练。在回答末尾附上来源链接供点击验证。';
 
             var apiMessages = [{ role: 'system', content: systemPrompt }];
             for (var i = 0; i < chatState.messages.length; i++) {
