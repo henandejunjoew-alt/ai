@@ -414,7 +414,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-30 11:35:42" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-30 11:41:32" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -516,6 +516,19 @@
         function getDatePrefix() {
             const now = new Date();
             return '【日期锚定】今天是 ' + now.getFullYear() + ' 年 ' + (now.getMonth()+1) + ' 月 ' + now.getDate() + ' 日。所有信息必须基于当前日期判断时效性。';
+        }
+
+        // 过滤只有域名的链接（如 https://reuters.com），保留完整文章链接（如 https://reuters.com/article/xyz）
+        function isArticleUrl(url) {
+            if (!url) return false;
+            try {
+                var u = new URL(url);
+                // 排除协议相对链接和空路径
+                if (u.pathname === '/' || u.pathname === '') return false;
+                // 排除只有 hash 的链接
+                if (u.pathname === '/' && u.hash) return false;
+                return true;
+            } catch(e) { return false; }
         }
 
         // ==========================================
@@ -920,7 +933,7 @@
                 searchContext = allResults.slice(0, 15).map(function(r) {
                     return '- [' + r.title + '](' + r.url + ') ' + (r.content || '').slice(0, 250);
                 }).join('\n');
-                sourceLinks = allResults.slice(0, 8).map(function(r) {
+                sourceLinks = allResults.filter(function(r) { return isArticleUrl(r.url); }).slice(0, 8).map(function(r) {
                     return '<a href="' + (r.url || '').replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" class="text-[9px] text-cyan-500 hover:text-cyan-300 underline underline-offset-2 truncate block max-w-full">' + (r.title || r.url).slice(0, 60) + '</a>';
                 }).join('');
                 if (allResults.length > 0) searchStatus = '实时搜索';
@@ -1174,7 +1187,7 @@ ${searchContext || '（暂未搜索到当日新闻）'}
             "title": "新闻标题",
             "date": "从新闻内容中提取的实际发布日期",
             "detail": "事件摘要 + 对起重机出口的具体影响分析（50字以内）",
-            "source": "https://原文URL"
+            "source": "https://原文完整URL"
         }
     ],
     "summary": "今日地缘与货运风险综述，以及对起重机出口市场的整体判断（50字以内）"
@@ -1184,9 +1197,13 @@ ${searchContext || '（暂未搜索到当日新闻）'}
 - 如果今日新闻中没有相关事件，alerts 返回空数组，summary 写"今日暂无重大相关事件"。
 - 如果这些网站上没有找到与战争、制裁或贸易禁令相关的信息，请将其标记为【未经证实的传闻】，不要将其作为事实呈现。
 - level 标注：critical = 直接影响航线/关税/制裁，warning = 潜在风险上升，info = 一般性关注。
-- 每条 alert 的 source URL 必须来自上面提供的搜索结果，不要编造。`;
+- 每条 alert 的 source URL 必须**严格使用上面搜索结果中给出的完整文章链接**（包括 /article/xxx 等路径），禁止只输出域名（如 https://reuters.com），必须输出完整文章路径。如果搜索结果中没有找到对应新闻的完整URL，则该条 alert 的 source 置为空字符串。`;
                 const geoResult = await Brain.ask(geoPrompt, 0.3);
-                const alerts = (geoResult && geoResult.alerts) || [];
+                const alerts = ((geoResult && geoResult.alerts) || []).filter(function(a) {
+                    // 过滤掉 source 为空或仅为域名的预警
+                    if (!a.source) return true; // 允许空，渲染时会跳过链接
+                    return isArticleUrl(a.source);
+                });
 
                 // 持久化到 localStorage
                 localStorage.setItem('geo_alerts_cache', JSON.stringify({
@@ -1298,7 +1315,7 @@ ${searchContext || '（暂未搜索到当日新闻）'}
                 const searchContext = allResults.slice(0, 20).map(function(r) {
                     return '- [' + r.title + '](' + r.url + ') ' + (r.content || '').slice(0, 250);
                 }).join('\n');
-                var countrySourceLinks = allResults.slice(0, 8).map(function(r) {
+                var countrySourceLinks = allResults.filter(function(r) { return isArticleUrl(r.url); }).slice(0, 8).map(function(r) {
                     return '<a href="' + (r.url || '').replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" class="text-[9px] text-cyan-500 hover:text-cyan-300 underline underline-offset-2 truncate block max-w-full">' + (r.title || r.url).slice(0, 60) + '</a>';
                 }).join('');
 
