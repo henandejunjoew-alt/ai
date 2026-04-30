@@ -414,7 +414,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-30 10:40:13" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-30 10:47:03" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -490,7 +490,13 @@
             'supplychaindive.com', 'freightwaves.com', 'trade.gov',
             'mofcom.gov.cn', 'gov.cn', 'bbc.com', 'bbc.co.uk',
             'apnews.com', 'cnbc.com', 'economist.com', 'scmp.com',
-            'nih.gov', 'who.int', 'reutersagency.com', 'maritime-executive.com'
+            'nih.gov', 'who.int', 'reutersagency.com', 'maritime-executive.com',
+            'weather.gov', 'weather.com', 'accuweather.com', 'nmc.cn', 'cma.gov.cn',
+            'aljazeera.com', 'theguardian.com', 'nytimes.com', 'washingtonpost.com',
+            'dw.com', 'france24.com', 'channelnewsasia.com', 'nhk.or.jp',
+            'reutersagency.com', 'maritime-executive.com', 'worldweatheronline.com',
+            'timeanddate.com', 'gmtu.org', 'craneexport.com', 'khl.com',
+            'cranemarket.com', 'hoerbiger.com', 'transportgeography.org'
         ];
         // Domains to always exclude (social media, blogs, low-quality aggregators)
         const TAVILY_BLACKLIST = [
@@ -1111,20 +1117,19 @@
             container.innerHTML = '<div class="text-xs text-slate-500 animate-pulse py-6 text-center">正在搜索最新地缘情报...</div>';
 
             try {
-                // Step 1: DuckDuckGo 实时搜索地缘政治事件
+                // Step 1: 并行 Tavily 搜索地缘政治事件（3 路并行，跳过慢速 DDG）
                 const geoQueries = [
-                    'crane export shipping disruption 2026',
-                    'geopolitical risk heavy machinery import tariff 2026',
-                    'port congestion freight rate crane equipment 2026',
-                    'Red Sea Suez Canal shipping crane delay 2026',
-                    'trade war sanctions heavy equipment crane 2026'
+                    'crane export shipping disruption 2026 port',
+                    'geopolitical risk tariff heavy machinery 2026',
+                    'port congestion Red Sea crane delay 2026'
                 ];
                 const allResults = [];
-                for (const q of geoQueries) {
-                    const res = await tavilySearch(q, { max_results: 8 });
+                const geoSearchResults = await Promise.all(geoQueries.map(function(q) {
+                    return _tavilyApi(q, { max_results: 8 });
+                }));
+                geoSearchResults.forEach(function(res) {
                     if (res && res.results) allResults.push(...res.results);
-                    if (allResults.length >= 30) break;
-                }
+                });
                 const searchContext = allResults.slice(0, 20).map(function(r) {
                     return '- [' + r.title + '](' + r.url + ') ' + (r.content || '').slice(0, 200);
                 }).join('\n');
@@ -1134,14 +1139,19 @@
 
 【日期锚定】今天是 2026 年 4 月 29 日。所有事件必须基于当前日期判断时效性。
 
-以下是从DuckDuckGo实时搜索到的近期相关新闻摘要（仅限权威新闻源和海运专业网站），请基于这些真实数据进行分析，不要编造：
+以下是从Tavily搜索引擎抓取到的近期新闻摘要（仅限权威新闻源和海运专业网站），请基于这些真实数据进行分析：
 
-${searchContext || '（暂未搜索到相关新闻，请基于最新常识回答）'}
+${searchContext || '（暂未搜索到相关新闻）'}
+
+【重要：来源质量规则】
+1. 从以下搜索结果中提取的事件，其来源URL的域名必须在权威新闻机构或官方机构列表中（reuters.com, bloomberg.com, apnews.com, bbc.com, ft.com, wsj.com, cnbc.com, gov.cn, ec.europa.eu 等）。如果来源域名是个人博客、SEO垃圾站、聚合器，则丢弃该条目。
+2. 每条事件必须包含一个指向权威来源的真实可访问URL。如果搜索结果中没有可用的权威来源，请不要编造来源。
+3. 不要从搜索结果中提取来源不可靠的事件。
 
 【自我怀疑机制】如果你抓到的消息逻辑极其反常（如全球性战争、完全颠覆性的政策突变），请在回答前进行自我怀疑，并在该条目的 detail 末尾标注 [待核实]。
 
 请提取最近7天内全球范围内对起重机/重型机械出口有真实影响的地缘冲突事件和货运物流预警。
-最多5条，每条必须包含具体日期和来源URL。
+最多5条，每条必须包含具体日期和真实来源URL。
 
 返回纯JSON格式（不要 markdown 标记）：
 {
@@ -2467,22 +2477,22 @@ ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识
         // ==========================================
         async function webSearch(query, opts) {
             opts = opts || {};
-            // 1) 先尝试 DuckDuckGo（免费，无需密钥）
-            console.log('[webSearch] DDG搜索:', query.slice(0, 60));
-            var ddgResult = await duckDuckGoSearch(query, opts);
-            if (ddgResult && ddgResult.results && ddgResult.results.length > 0) {
-                console.log('[webSearch] DDG成功:', ddgResult.results.length, '条');
-                return ddgResult;
-            }
-            // 2) 后备：Tavily（如有密钥）
+            // 1) 优先 Tavily（快、有域名白名单、有日期过滤）
             var tvKey = getTavilyKey();
             if (tvKey) {
-                console.log('[webSearch] Tavily后备:', query.slice(0, 60));
+                console.log('[webSearch] Tavily优先:', query.slice(0, 60));
                 var tvResult = await _tavilyApi(query, opts);
                 if (tvResult && tvResult.results && tvResult.results.length > 0) {
                     console.log('[webSearch] Tavily成功:', tvResult.results.length, '条');
                     return tvResult;
                 }
+            }
+            // 2) 后备：DuckDuckGo（免费，无需密钥）
+            console.log('[webSearch] DDG后备:', query.slice(0, 60));
+            var ddgResult = await duckDuckGoSearch(query, opts);
+            if (ddgResult && ddgResult.results && ddgResult.results.length > 0) {
+                console.log('[webSearch] DDG成功:', ddgResult.results.length, '条');
+                return ddgResult;
             }
             // 3) 都失败
             console.warn('[webSearch] 所有搜索引擎均无法连接');
@@ -3638,6 +3648,7 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
                     '1. 如果搜索结果中最新的发布日期是 ' + (freshestDate || '未知') + '，回答时必须明确告知用户这个日期。\n' +
                     '2. 如果搜索结果中没有找到当天或昨天的信息，回复开头就说明"搜索结果中暂无今日最新数据，以下是截至' + (freshestDate || '近期') + '的信息".\n' +
                     '3. 不要使用搜索结果中没有的信息来假装知道最新情况。\n\n' +
+                    '【来源质量标准】只使用权威来源（新闻机构、政府网站、官方气象局）的数据。忽略个人博客、SEO聚合站、论坛的内容。如果搜索结果中缺乏权威来源，请说明"暂未找到权威来源"而非编造。\n\n' +
                     '你的风格：专业、冷静、直接，用简洁的中文回答，每次回答控制在100字以内，保持干练。可以带一点冷幽默，但整体保持专业。';
 
                 var apiMessages = [{ role: 'system', content: systemPrompt }];
