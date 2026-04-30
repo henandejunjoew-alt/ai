@@ -414,7 +414,7 @@
                 </div>
             </div>
 
-            <footer id="deploy-footer" data-ts="2026-04-30 10:21:17" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
+            <footer id="deploy-footer" data-ts="2026-04-30 10:28:08" class="text-center text-[10px] text-slate-600 mt-8 pb-4 tracking-wider">部署时间加载中...</footer>
 
         </main>
     </div>
@@ -2417,7 +2417,9 @@ ${searchContext || '（暂未搜索到相关公开信息，请基于已知知识
                     include_raw_content: true
                 };
                 // Domain whitelist: use custom if provided, otherwise default
-                if (opts && opts.include_domains) {
+                if (opts && opts.skip_domain_filter) {
+                    // 不限制域名（聊天等通用搜索）
+                } else if (opts && opts.include_domains) {
                     body.include_domains = opts.include_domains;
                 } else {
                     body.include_domains = TAVILY_WHITELIST;
@@ -3580,25 +3582,65 @@ WhatsApp 链接：${whatsAppLinks.join('; ') || '未发现'}
             }
             var now = new Date();
             var beijing = new Date(now.getTime() + (now.getTimezoneOffset() + 480) * 60000);
-            var timeStr = beijing.getFullYear() + '年' + (beijing.getMonth()+1) + '月' + beijing.getDate() + '日 ' +
+            var dateStr = beijing.getFullYear() + '年' + (beijing.getMonth()+1) + '月' + beijing.getDate() + '日';
+            var dateISO = beijing.getFullYear() + '-' + String(beijing.getMonth()+1).padStart(2,'0') + '-' + String(beijing.getDate()).padStart(2,'0');
+            var timeStr = dateStr + ' ' +
                 ('0' + beijing.getHours()).slice(-2) + ':' + ('0' + beijing.getMinutes()).slice(-2) + ':' + ('0' + beijing.getSeconds()).slice(-2);
 
-            // Step 1: 用用户的问题执行联网搜索
-            return tavilySearch(userText, { max_results: 8 }).then(function(searchResult) {
+            // Step 1: 快速搜索 — 优先 Tavily（快、有日期过滤），否则 DDG
+            // 给搜索 query 追加当天日期，确保拿到最新信息
+            var searchQuery = userText + ' ' + dateISO;
+            var searchOpts = { max_results: 5, skip_domain_filter: true };
+            // 优先 Tavily（有密钥时），失败则后备 DDG
+            var searchPromise;
+            if (getTavilyKey()) {
+                searchPromise = _tavilyApi(searchQuery, searchOpts).then(function(r) {
+                    return r || duckDuckGoSearch(searchQuery, { max_results: 5 });
+                });
+            } else {
+                searchPromise = duckDuckGoSearch(searchQuery, { max_results: 5 });
+            }
+
+            return searchPromise.then(function(searchResult) {
                 var searchContext = '';
                 var searchSources = [];
                 if (searchResult && searchResult.results && searchResult.results.length > 0) {
-                    searchContext = searchResult.results.slice(0, 8).map(function(r) {
+                    // 按发布时间排序（最新的在前），只保留 4 条最相关的
+                    var sorted = searchResult.results.slice().sort(function(a, b) {
+                        var da = a.published_date ? new Date(a.published_date).getTime() : 0;
+                        var db = b.published_date ? new Date(b.published_date).getTime() : 0;
+                        return db - da;
+                    });
+                    sorted.slice(0, 4).forEach(function(r) {
                         if (r.url) searchSources.push({ title: r.title || '', url: r.url });
-                        return '- [' + (r.title || '') + '](' + (r.url || '') + ') ' + ((r.content || '').slice(0, 300));
+                    });
+                    searchContext = sorted.slice(0, 4).map(function(r) {
+                        return '- [' + (r.title || '') + '](' + (r.url || '') + ') [发布:' + (r.published_date || '未知') + '] ' + ((r.content || '').slice(0, 200));
                     }).join('\n');
                 }
 
-                var systemPrompt = '【日期锚定】今天北京时间是 ' + timeStr + '（UTC+8，公历' + beijing.getFullYear() + '年' + (beijing.getMonth()+1) + '月' + beijing.getDate() + '日）。所有时效性信息必须基于此日期判断。\n\n' +
-                    '你是德德，一台专注于起重机海外贸易的AI助手。你服务于一家中国起重机出口公司，主要帮助业务团队：分析海外买家背景和信用风险；评估汇率、外汇管制、信用证等结算问题；提供物流建议包括国际局势对航运的影响、港口状况、HS编码归类；制定客户谈判策略和商务切入方案；解答出口合规和目标市场准入条件。\n\n' +
-                    (searchContext ? '以下是DuckDuckGo实时搜索到的与用户问题相关的最新信息，请基于这些真实数据回答，不要编造：\n\n' + searchContext + '\n\n' : '（联网搜索未返回结果，请基于你的训练知识回答，并注明数据可能存在滞后。）\n\n') +
-                    '**每次回答必须附上信息来源链接。** 在回答末尾列出你参考的网页标题和URL，格式为：来源：[标题](URL)。如果数据来自联网搜索结果，引用上面的实际链接。\n\n' +
-                    '【自我怀疑机制】如果你检索到的信息中存在逻辑极其反常或颠覆性的消息（如战争爆发、重大政策剧变），但搜索结果中缺乏多个权威来源交叉证实，请标注 [待核实] 并说明信息来源局限性。\n\n' +
+                var freshestDate = '';
+                if (searchSources.length > 0) {
+                    var dates = [];
+                    if (searchResult && searchResult.results) {
+                        searchResult.results.forEach(function(r) {
+                            if (r.published_date) dates.push(r.published_date);
+                        });
+                    }
+                    dates.sort();
+                    if (dates.length > 0) freshestDate = dates[dates.length - 1];
+                }
+
+                var systemPrompt = '【日期锚定】今天北京时间是 ' + timeStr + '（UTC+8）。所有时效性信息必须基于此日期判断。\n\n' +
+                    '你是德德，一台专注于起重机海外贸易的AI助手。你服务于一家中国起重机出口公司。\n\n' +
+                    (searchContext
+                        ? '以下是联网实时搜索到的与用户问题相关的最新信息（按发布时间排列，最新的在前），请**严格基于这些数据**回答，不要编造：\n\n' + searchContext + '\n\n'
+                        : '（联网搜索未返回结果，请基于你的训练知识回答，并注明数据可能存在滞后。）\n\n') +
+                    '【时效性规则】\n' +
+                    '1. 如果搜索结果中最新的发布日期是 ' + (freshestDate || '未知') + '，回答时必须明确告知用户这个日期。\n' +
+                    '2. 如果搜索结果中没有找到当天或昨天的信息，回复开头就说明"搜索结果中暂无今日最新数据，以下是截至' + (freshestDate || '近期') + '的信息".\n' +
+                    '3. 不要使用搜索结果中没有的信息来假装知道最新情况。\n\n' +
+                    '**在回答末尾附上信息来源链接。** 格式：来源：[标题](URL)\n\n' +
                     '你的风格：专业、冷静、直接，用简洁的中文回答，每次回答控制在100字以内，保持干练。可以带一点冷幽默，但整体保持专业。';
 
                 var apiMessages = [{ role: 'system', content: systemPrompt }];
